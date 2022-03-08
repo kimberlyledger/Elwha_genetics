@@ -1,0 +1,89 @@
+---
+title: "Elwha Steelhead Population Genetics"
+author: "Kimberly Ledger"  
+date: "8 March 2022" 
+output: github_document
+---
+
+This code will look at neutral population genetics of steelhead/rainbow trout in the Elwha River, Washington - this dataset includes individuals sampled before and after two dams were removed (lower dam removal completed in 2012; upper dam removal completed in 2015)
+
+load libraries
+```{r, message=FALSE}
+library(vcfR) #this package is used to visualize and manipulate VCF files
+library(adegenet) #this package is used for analysis of genetic/genomic data 
+library(dplyr) # data manipulation
+library(tidyr) # data manipulation
+library(pegas) #a package for pop gen data analysis
+library(poppr) #a package for pop gen data analysis
+```
+
+
+# Part 1: Prepare the data
+
+## read in the steelhead (Oncorhynchus mykiss) metadata
+```{r}
+onmy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Steelhead_Formatted.csv")
+head(onmy_metadata)
+```
+### check out a quick summary tables of the metadata 
+
+```{r, message=FALSE}
+onmy_metadata %>%
+  group_by(Time, Location, Life_Stage) %>%
+  summarize(total = n())
+
+onmy_metadata %>%
+  group_by(Time, Sampling_Site) %>%
+  summarize(total = n()) %>%
+  pivot_wider(names_from = "Time", values_from = "total")
+```
+
+
+## read in the VCF file and convert to genind object
+```{r}
+onmy_vcf <- read.vcfR("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf")
+onmy_genind <- vcfR2genind(onmy_vcf, sep = "/")
+onmy_genind
+```
+
+## add population information into the genind object  - Location or Sampling_Site????
+
+```{r}
+# create empty data frame 
+onmy_pop <- matrix(NA, nrow=nrow(onmy_genind@tab), ncol=2)
+onmy_pop <- as.data.frame(onmy_pop)
+names(onmy_pop) <- c("Sample_ID", "pop")
+
+# add population info for each individual to data frame
+for (i in 1:nrow(onmy_genind@tab)){
+  onmy_pop$Sample_ID[i] <- rownames(onmy_genind@tab)[i]
+  onmy_pop$pop[i] <- onmy_metadata %>% filter(Sample_ID == rownames(onmy_genind@tab)[i]) %>% select(Location)
+}
+
+# add population info to the genind obj
+strata(onmy_genind) <- onmy_pop
+setPop(onmy_genind) <- ~pop
+
+onmy_genind
+```
+
+# Part 2: Genetic Diversity 
+
+## global hardy-weinberg equilibrium
+```{r}
+onmy_hw <- pegas::hw.test(onmy_genind, B=0)
+head(onmy_hw)
+```
+
+
+## LD test using "poppr" package and "genclone" object
+```{r}
+#onmy_genclone <- as.genclone(onmy_genind)
+#LDpair <- onmy_genclone %>% pair.ia
+#LDpair <- tibble::rownames_to_column(as.data.frame(LDpair), var = "pairID")
+```
+
+
+
+
+
