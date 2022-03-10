@@ -757,7 +757,7 @@ genos <- read.pcadapt("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.v
     ## Summary:
     ## 
     ##  - input file:               ~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf
-    ##  - output file:              /var/folders/t2/wbsd_3lj75g73ymn1rtjbwj00000gn/T//Rtmp9YIoaJ/file1a8a1aa043f2.pcadapt
+    ##  - output file:              /var/folders/t2/wbsd_3lj75g73ymn1rtjbwj00000gn/T//RtmpeHwSXq/file20eb59f8ae83.pcadapt
     ## 
     ##  - number of individuals detected:   1169
     ##  - number of loci detected:      336
