@@ -46,8 +46,9 @@ onmy_genind <- vcfR2genind(onmy_vcf, sep = "/")
 onmy_genind
 ```
 
-## add population information into the genind object  - Location or Sampling_Site????
+note: there is a warning about "stack imbalance". is this a problem? 
 
+## add population information into the genind object  - Location or Sampling_Site????
 ```{r}
 # create empty data frame 
 onmy_pop <- matrix(NA, nrow=nrow(onmy_genind@tab), ncol=2)
@@ -60,6 +61,12 @@ for (i in 1:nrow(onmy_genind@tab)){
   onmy_pop$pop[i] <- onmy_metadata %>% filter(Sample_ID == rownames(onmy_genind@tab)[i]) %>% select(Location)
 }
 
+# check for samples missing from metadata file
+onmy_pop[which(onmy_pop$pop == "character(0)"),]
+
+# removed pop column for samples missing location ID 
+#onmy_pop2 <- onmy_pop[-c(143,144,145,146,458,460,962,990),]
+
 # add population info to the genind obj
 strata(onmy_genind) <- onmy_pop
 setPop(onmy_genind) <- ~pop
@@ -67,14 +74,34 @@ setPop(onmy_genind) <- ~pop
 onmy_genind
 ```
 
+note: there are eight samples with genotypes missing from the metadata file
+
+* 50584_289    
+* 50584_290    
+* 50584_292    
+* 50585_055    
+* 52008_2018_02    
+* 52008_2018_03    
+* 52275_196    
+* 52381_2019_170    
+
+
 # Part 2: Genetic Diversity 
 
 ## global hardy-weinberg equilibrium
 ```{r}
-onmy_hw <- pegas::hw.test(onmy_genind, B=0)
-head(onmy_hw)
-```
+onmy_hwt <- pegas::hw.test(onmy_genind, B=0)
+head(onmy_hwt)
 
+onmy_HWDloci <- matrix(NA, nrow=nrow(onmy_hwt), ncol=2)
+colnames(onmy_HWDloci) <- c("name_loci", "p_value")
+for (i in 1:nrow(onmy_hwt)){
+  if (onmy_hwt[i,3] < 0.05){
+    onmy_HWDloci[i,1] <- rownames(onmy_hwt)[i]
+    onmy_HWDloci[i,2] <- onmy_hwt[i,3]
+  }
+}
+```
 
 ## LD test using "poppr" package and "genclone" object
 ```{r}
@@ -83,6 +110,375 @@ head(onmy_hw)
 #LDpair <- tibble::rownames_to_column(as.data.frame(LDpair), var = "pairID")
 ```
 
+
+## read in loci metadata
+```{r}
+onmy_loci_meta <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Steelhead_Locus_Key_kjl.csv")
+```
+
+## read in SNP coordinate data 
+```{r}
+onmy_snp_coord <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/SNP_Coordinates_CRITFC_kjl.csv")
+```
+
+join loci metadata and SNP coords 
+```{r}
+onmy_locus_join <- onmy_snp_coord %>%
+  left_join(onmy_loci_meta, by = "Locus")
+```
+
+note: loci on chromosome 25 do not have neutral/adaptive metadata included 
+
+## filter the metatdata for only the neutral loci 
+```{r}
+onmy_loci_neutral <- onmy_locus_join %>%
+  filter(Status == "Neutral")
+
+onmy_snp_neutral <- onmy_loci_neutral$SNP
+```
+
+## filter the genind object to retain only neutral loci
+```{r}
+onmy_genind_neutral <- onmy_genind[loc = onmy_snp_neutral]
+onmy_genind_neutral
+```
+
+Note: there are 20 neutral loci from the loci metadata that do not seem to match loci names in the genind object  
+for now, i will continue working with the **222 neutral loci**
+
+## recheck for deviations from hardy-weinberg equilibrium (global)
+
+```{r}
+onmy_neutral_hw <- data.frame(round(pegas::hw.test(onmy_genind_neutral, B = 0), digits = 3)) #skipping permutation test
+
+onmy_neutral_out_of_hw <- onmy_neutral_hw %>%
+  filter(Pr.chi.2... < 0.05)
+
+nrow(onmy_neutral_out_of_hw)
+```
+
+note: there the 53 loci that fall out of HWE  
+
+## check for deviations from hardy-weinberg equilibrium at the population level
+
+```{r}
+onmy_neutral_hw_test <- data.frame(sapply(seppop(onmy_genind_neutral), 
+                              function(ls) pegas::hw.test(ls, B = 0)[,3])) #skipping permutation test
+
+# remove the column for the population that is just samples that did not have population metadata 
+ onmy_neutral_hw_test2 <- onmy_neutral_hw_test[,-4]
+
+onmy_neutral_hw_chisq <- t(data.matrix(onmy_neutral_hw_test2))
+{cat("Chi-squared test (p-values):", "\n")
+round(onmy_neutral_hw_chisq ,3)}
+
+# proportion of loci out of HWE 
+alpha=0.05
+Prop.loci.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 2, mean))
+Prop.loci.out.of.HWE %>%
+  filter(Chisq >= 0.5)
+
+# for each population, the proportion of loci out of HWE
+Prop.pop.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 1, mean))
+Prop.pop.out.of.HWE
+```
+
+Note: there are 25 loci that fall out of HWE for 2 or more of the populations (BD/ID/AD/SBLR)  
+Note: SBLR is consistently out of HWE across loci
+
+### to do?: repeat test of HWE with 'false discovery rate' correction 
+
+## check for linkage disequilibrium   
+just doing this for the exercise... we know where on the genome these markers are located
+
+```{r}
+LD <- poppr::ia(onmy_genind_neutral, sample = 10)  #should increase this by a lot... 
+LD
+```
+
+pair-wise LD - this takes a long time to run so not including it for now... 
+```{r}
+#LD.pair <- poppr::pair.ia(onmy_genind_neutral)
+#LD.pair
+```
+
+
+## try finding outliers using pcadapt
+
+```{r}
+library(pcadapt)
+library(qvalue)
+```
+
+read in the genetic data from the vcf file 
+```{r}
+genos <- read.pcadapt("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf", type=c("vcf"))
+
+x <- pcadapt(input = genos, K = 5)
+plot(x, option="screeplot")
+plot(x, option="scores")
+plot(x, option="manhattan")
+plot(x, option = "qqplot", threshold = 0.1)
+```
+
+identify statistical outliers 
+```{r}
+qval <- qvalue(x$pvalues)$qvalues
+outliers <- which(qval<0.1)
+length(outliers)
+```
+
+25 outlier loci detected 
+note: this includes both the adaptive and neutral loci from the .vcf file... 
+
+## use Fst to find outliers 
+
+this starts with reading in the .vcf using read.vcfR()
+```{r}
+onmy_vcf
+
+geno <- extract.gt(onmy_vcf)
+dim(geno)
+
+head(geno[,1:10])
+```
+
+Notice that as our genotypes look like 0/0, 0/1, and 1/1. But OutFLANK wants them to be 0, 1, or 2. The code below fixes this problem:
+```{r}
+G <- geno  #we are doing this because we will be running a lot of different things with G, and if we mess up we want to be able to go back to geno
+
+G[geno %in% c("0/0")] <- 0
+G[geno  %in% c("0/1")] <- 1
+G[geno %in% c("1/1")] <- 2
+G[is.na(G)] <- 9
+tG <- t(G)
+dim(tG)
+```
+
+figure out how to match the population metadata... 
+```{r}
+samples <- data.frame(colnames(geno))
+colnames(samples) <- "Sample_ID"
+
+samples_pop <- samples %>%
+  left_join(onmy_metadata, by = "Sample_ID")
+```
+
+note: there are a few individuals with missing metadata 
+
+Now tG should be in the input format OutFLANK needs, with SNPs as columns and individuals as rows. 
+
+Now we can calculate Fst for each SNP: locusNames= names our loci 1,2,3 etc popNames= names our populations with the “SITE” labels
+
+```{r}
+library(OutFLANK)
+fst <- MakeDiploidFSTMat(tG,locusNames=1:ncol(tG),popNames=samples_pop$Location)
+
+head(fst)
+```
+
+```{r}
+hist(fst$FST, breaks = 50)
+```
+
+Once we’ve calculated Fst between the populations for each SNP individually, we want to determine whether some SNPs are statistical outliers - that is, more differentiated than we would expect. OutFLANK does this by fitting a Chi-Squared distribution to the data and looking to see if the tails of the Chi-Squared distribution have more SNPs than expected:  
+
+**check OutFLANK parameters** for now, i only adjusted the RightTrimFraction from the tutorial's values
+```{r}
+OF <- OutFLANK(fst,LeftTrimFraction=0.01,RightTrimFraction=0.05,
+         Hmin=0.05,NumberOfSamples=2,qthreshold=0.01)
+OutFLANKResultsPlotter(OF,withOutliers=T,
+                       NoCorr=T,Hmin=0.1,binwidth=0.005,
+                       Zoom=F,RightZoomFraction=0.05,titletext=NULL)
+```
+
+which SNPs are statistical outliers?
+```{r}
+P1 <- pOutlierFinderChiSqNoCorr(fst,Fstbar=OF$FSTNoCorrbar,
+                                dfInferred=OF$dfInferred,qthreshold=0.05,Hmin=0.1)
+outliers <- P1$OutlierFlag==TRUE #which of the SNPs are outliers?
+table(outliers)
+```
+
+the Fst outlier test identified **10 outlier SNPs** 
+
+Now we can make a manhattan plot! We can even plot the outliers in a different color:
+```{r}
+plot(P1$LocusName,P1$FST,xlab="Position",ylab="FST",col=rgb(0,0,0,alpha=0.1))
+points(P1$LocusName[outliers],P1$FST[outliers],col="magenta")
+```
+
+okay, so fewer loci are detected as outliers than were filtered out by the "neutral/adaptive" category
+
+how many loci were defined as adaptive by Alex? 
+```{r}
+onmy_locus_join %>%
+  filter(Status == "Adaptive") %>%
+  summarize(n=n())
+```
+
+### to do: set sampling location as 'population' instead of AD/ID/BD/SBLR
+
+## Population Structure (following week9 class code)
+
+let's start with using the geno object from above... but we need to transcribe to have samples in rows and loci in columns
+
+```{r}
+t_geno <- t(geno)
+```
+
+as with OutFLANK, we need genotypes to be 0, 1, or 2. The code below fixes this problem. This time i am retaining missing genotypes as NA's 
+```{r}
+G2 <- t_geno  #we are doing this because we will be running a lot of different things with G, and if we mess up we want to be able to go back to geno
+
+G2[t_geno %in% c("0/0")] <- 0
+G2[t_geno  %in% c("0/1")] <- 1
+G2[t_geno %in% c("1/1")] <- 2
+dim(G2)
+```
+
+match population data to the genotypes - i am using the "samples_pop" object created earlier 
+```{r}
+#head(samples_pop)
+
+#list of "location" as population 
+locations <- samples_pop$Location
+sampling_site <- samples_pop$Sampling_Site
+```
+
+note: there are a few individuals with missing metadata 
+
+what is the sample size for each sampling site? 
+```{r}
+table(sampling_site)
+```
+
+## examine population structure 
+
+convert charcter matrix to numeric matrix
+```{r}
+G2_fac <- matrix(as.numeric(G2), ncol = ncol(G2))
+colnames(G2_fac) <- colnames(G2)
+rownames(G2_fac) <- rownames(G2)
+```
+
+
+there is missing data. since one can not run a pca using prcomp() with any missing data, the loci or samples with NA's need to be removed or their values imputed... 
+```{r}
+par(mar=c(4,4,2,0.5))
+pcaS <- prcomp(G2_fac, center=T)
+plot(pcaS$sdev^2 / sum(pcaS$sdev^2), xlab="PC",
+     ylab="Fraction Variation Explained", main="Scree plot")
+```
+
+when i used pcadapt (above), missing values did not seem to be an issue... for now i will try going back to pcadapt 
+
+this is using the genos object (read in from the vcf file using read.pcadapt()) we used earlier in the outlier test, but this time increasing K  
+```{r}
+x2 <- pcadapt(input = genos, K = 20)
+```
+
+scree plot 
+```{r}
+plot(x2, option = "screeplot")
+```
+
+plot the scores - add color for the sampling locations 
+
+```{r}
+plot(x2, option = "scores", pop = locations)
+plot(x2, option = "scores", pop = sampling_site)
+
+```
+
+```{r}
+plot(x2, option = "scores", i = 3, j = 4, pop = locations)
+plot(x2, option = "scores", i = 4, j = 5, pop = locations)
+
+```
+pc3 separates SBLR from all other samples; pc4 and above no longer ascertain population structure 
+
+## compute the test statistic based on PCA 
+
+we will use K=3 based on the above plots 
+
+```{r}
+x3 <- pcadapt(genos, K = 3)
+summary(x3)
+```
+
+### plots 
+```{r}
+plot(x3, option = "manhattan")
+plot(x3, option = "qqplot")
+hist(x3$pvalues, xlab = "p-values", main = NULL, breaks = 50, col = "orange")
+```
+
+from here there are several ways to detect outliers, q-values, Benjamini-Hochberg, bonferroni correction...  
+see:  https://bcm-uga.github.io/pcadapt/articles/pcadapt.html
+
+
+
+### evaluate if LD could be an issue for the dataset
+display the loadings (contributions of each SNP to the PC) and to evaluate if the loadings are clustered in a single or several genomic regions
+
+```{r}
+par(mfrow = c(2, 2))
+for (i in 1:3)
+  plot(x3$loadings[, i], pch = 19, cex = .3, ylab = paste0("Loadings PC", i))
+```
+
+PC1 is determined mostly by 2 genomic regions - possibly a region of strong LD 
+PC2 is determined moslty by 1 genomic region - another possible region of strong LD 
+
+now let's try thinning the SNPs in order to compute the PCs
+for now i'm just guessing on thinning parameters 
+```{r}
+x_reduced <- pcadapt(input = genos, K = 20, LD.clumping = list(size = 200, thr = 0.1))
+plot(x_reduced, option = "screeplot")
+plot(x_reduced, option = "scores", pop = locations)
+plot(x_reduced, option = "scores", pop = sampling_site)
+plot(x_reduced, option = "scores", i = 3, j = 4, pop = locations)
+plot(x_reduced, option = "scores", i = 4, j = 5, pop = locations)
+```
+
+after thinning, k=2 looks good. 
+
+```{r}
+x2_res <- pcadapt(genos, K = 2, LD.clumping = list(size = 200, thr = 0.1))
+par(mfrow = c(1, 2))
+for (i in 1:2)
+  plot(x2_res$loadings[, i], pch = 19, cex = .3, ylab = paste0("Loadings PC", i))
+```
+
+plots look better now... 
+
+```{r}
+plot(x2_res)
+```
+
+now maybe there is one region involved in adaptation?? 
+
+## Clustering with SNMF (similar to ‘STRUCTURE’)
+
+convert vcf to geno 
+```{r}
+library('LEA')
+
+mygeno <- vcf2lfmm("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf")
+
+
+filepath <- "~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf"
+```
+
+
+estimate K 
+```{r}
+snmf2 <- LEA::snmf("stickleback.geno", K=1:8, ploidy=2, entropy=T, 
+                   alpha=100, project="new")
+par(mfrow=c(1,1))
+plot(snmf2, col="blue4", cex=1.4, pch=19)
+```
 
 
 
