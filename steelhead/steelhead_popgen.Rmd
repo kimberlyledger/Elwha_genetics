@@ -455,8 +455,7 @@ dim(geno_reduced)   # there are 23 fewer columns now but i'm not sure if i remov
 #try making a tidy data frame 
 geno_tidy <- vcfR2tidy(onmy_vcf, single_frame = T)
 
-
-write.vcf(geno_reduced, "~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT_reduced.vcf")
+#write.vcf(geno_reduced, "~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT_reduced.vcf")
 #this does not work. 
 ```
 
