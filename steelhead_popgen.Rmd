@@ -446,35 +446,133 @@ now maybe there is one region involved in adaptation??
 
 remove outlier loci - is there a way to remove loci from within the pcadapt object? or the vcf object? 
 ```{r}
-outliers
+outliers #i believe these values are associated with columns in the geno matrix 
 
 dim(geno)
 geno_reduced <- geno[-outliers,]
-dim(geno_reduced)
+dim(geno_reduced)   # there are 23 fewer columns now but i'm not sure if i removed the correct ones... 
 
-#write.vcf(geno_reduced, "~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT_reduced.vcf.gz")
+#try making a tidy data frame 
+geno_tidy <- vcfR2tidy(onmy_vcf, single_frame = T)
+
+
+write.vcf(geno_reduced, "~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT_reduced.vcf")
 #this does not work. 
 ```
 
 
 ## Part 7: Clustering with SNMF (similar to ‘STRUCTURE’)
 
-convert vcf to geno - this crashes my RStudio... 
+this uses the package LEA
 ```{r}
-#library('LEA')
+library('LEA')
+```
 
-#mygeno <- vcf2geno("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf")
+
+### convert the genind to structure
+```{r}
+# Function to export to STRUCTURE format from genind object.
+# genind objects are created in the R package adegenet.  The function below is an R function.
+# Lindsay V. Clark, 26 July 2015
+
+# obj: genind object
+# file: file name to write
+# pops: whether to include population info in the file
+# Function is flexible with regards to ploidy, although genotypes are
+# considered to be unambiguous.
+# Missing data must be recorded as NA in obj@tab.
+
+# example use: 
+# data(nancycats)
+# genind2structure(nancycats, file="nancy_structure.txt", pops=TRUE)
+
+genind2structure <- function(obj, file="", pops=FALSE){
+  if(!"genind" %in% class(obj)){
+    warning("Function was designed for genind objects.")
+  }
+  
+  # get the max ploidy of the dataset
+  pl <- max(obj@ploidy)
+  # get the number of individuals
+  S <- adegenet::nInd(obj)
+  # column of individual names to write; set up data.frame
+  tab <- data.frame(ind=rep(indNames(obj), each=pl))
+  # column of pop ids to write
+  if(pops){
+    popnums <- 1:adegenet::nPop(obj)
+    names(popnums) <- as.character(unique(adegenet::pop(obj)))
+    popcol <- rep(popnums[as.character(adegenet::pop(obj))], each=pl)
+    tab <- cbind(tab, data.frame(pop=popcol))
+  }
+  loci <- adegenet::locNames(obj) 
+  # add columns for genotypes
+  tab <- cbind(tab, matrix(-9, nrow=dim(tab)[1], ncol=adegenet::nLoc(obj),
+                           dimnames=list(NULL,loci)))
+  
+  # begin going through loci
+  for(L in loci){
+    thesegen <- obj@tab[,grep(paste("^", L, "\\.", sep=""), 
+                              dimnames(obj@tab)[[2]]), 
+                        drop = FALSE] # genotypes by locus
+    al <- 1:dim(thesegen)[2] # numbered alleles
+    for(s in 1:S){
+      if(all(!is.na(thesegen[s,]))){
+        tabrows <- (1:dim(tab)[1])[tab[[1]] == indNames(obj)[s]] # index of rows in output to write to
+        tabrows <- tabrows[1:sum(thesegen[s,])] # subset if this is lower ploidy than max ploidy
+        tab[tabrows,L] <- rep(al, times = thesegen[s,])
+      }
+    }
+  }
+# export table
+write.table(tab, file=file, sep="\t", quote=FALSE, row.names=FALSE)
+}
+```
+
+convert
+```{r}
+genind2structure(onmy_genind, file="~/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure.txt", pops=TRUE)
+```
+
+
+convert struture text to geno - NOTE: i had to open the "onmy_structure.txt" file and change "-9" to "9" before running the struct2geno function
+```{r}
+struct2geno("~/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt", ploidy = 2, FORMAT = 2, extra.row = 1, extra.column = 1)
 ```
 
 
 estimate K 
 ```{r}
-#snmf2 <- LEA::snmf("stickleback.geno", K=1:8, ploidy=2, entropy=T, 
-#                   alpha=100, project="new")
-#par(mfrow=c(1,1))
-#plot(snmf2, col="blue4", cex=1.4, pch=19)
+snmf2 <- LEA::snmf("~/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno", K=1:8, ploidy=2, entropy=T, 
+                   alpha=100, project="new")
+par(mfrow=c(1,1))
+plot(snmf2, col="blue4", cex=1.4, pch=19)
 ```
 
+**not sure what K to use yet... need to try other methods** 
 
+for now i will use 3
+```{r}
+K = 3
+snmf_3 <- LEA::snmf("~/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno", K=K, ploidy=2, entropy=T, 
+                   alpha=100, project="new")
+```
+
+plot ancestral populations 
+```{r}
+qmatrix = LEA::Q(snmf_3, K = K)
+
+par(mar=c(4,4,0.5,0.5))
+barplot(t(qmatrix), col=RColorBrewer::brewer.pal(9,"Paired"), 
+        border=NA, space=0, xlab="Individuals", 
+        ylab="Admixture coefficients")
+#Add population labels to the axis:
+#for (i in 1:length(sampling_site)){
+#  axis(1, at=median(which(sample_sites==sampling_site[i])), labels=sampling_site[i])}
+```
+
+#to do: 
+## snmf says 1007 loci... is there a problem? 
+## figure how to assign samling site to indiviudals 
+## visualize admixture on a map
 
 
