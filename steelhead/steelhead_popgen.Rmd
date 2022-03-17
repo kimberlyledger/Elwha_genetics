@@ -426,7 +426,6 @@ plot(x_reduced, option = "scores", i = 4, j = 5, pop = locations)
 ```
 
 after thinning, k=2 looks good
-
 ```{r}
 x2_res <- pcadapt(genos, K = 2, LD.clumping = list(size = 200, thr = 0.1))
 par(mfrow = c(1, 2))
@@ -435,7 +434,6 @@ for (i in 1:2)
 ```
 
 plots look better now... but i'm really not sure how the LD.clumping function worked... 
-
 ```{r}
 plot(x2_res)
 ```
@@ -444,7 +442,8 @@ now maybe there is one region involved in adaptation??
 
 ## Part 6: rerun the PCA excluding the outlier loci discovered using pcadapt and q-values
 
-remove outlier loci - is there a way to remove loci from within the pcadapt object? or the vcf object? 
+remove outlier loci - is there a way to remove loci from within the pcadapt object? or the vcf object?  
+not sure the best way to filter the data using the pcadapt object... 
 ```{r}
 outliers #i believe these values are associated with columns in the geno matrix 
 
@@ -454,6 +453,7 @@ dim(geno_reduced)   # there are 23 fewer columns now but i'm not sure if i remov
 
 #try making a tidy data frame 
 geno_tidy <- vcfR2tidy(onmy_vcf, single_frame = T)
+geno_tidy2 <- vcfR2tidy(onmy_vcf)
 
 #write.vcf(geno_reduced, "~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT_reduced.vcf")
 #this does not work. 
@@ -566,7 +566,10 @@ barplot(t(qmatrix), col=RColorBrewer::brewer.pal(9,"Paired"),
         ylab="Admixture coefficients")
 #Add population labels to the axis:
 #for (i in 1:length(sampling_site)){
-#  axis(1, at=median(which(sample_sites==sampling_site[i])), labels=sampling_site[i])}
+#  axis(1, at=median(which(sampling_site==sampling_site[i])), labels=sampling_site[i])}
+#Add population labels to the axis:
+for (i in 1:length(locations)){
+  axis(1, at=median(which(locations==locations[i])), labels=locations[i])}
 ```
 
 #to do: 
@@ -574,4 +577,43 @@ barplot(t(qmatrix), col=RColorBrewer::brewer.pal(9,"Paired"),
 ## figure how to assign samling site to indiviudals 
 ## visualize admixture on a map
 
+
+# run pca follwing similar code to Yingxin
+
+create column in metadata for both time (pre/post dam) and location
+```{r}
+onmy_metadata2 <- onmy_metadata %>%
+  unite("TimePlace", c(Time, Location), sep= "_", remove = FALSE)
+```
+
+
+combine metadata and genotype data 
+
+now i need to figure out how to match the population metadata to the genotypes  
+
+* geno = the extract.gt object 
+* samples = data frame of all individuals 
+```{r}
+samples_pop2 <- samples %>%
+  left_join(onmy_metadata2, by = "Sample_ID")
+```
+
+
+
+
+```{r}
+dapcn <- dapc(onmy_genind_neutral, n.pca=20, n.da = 10,var.contrib = TRUE, pca.info=TRUE)
+#dapca <- dapc(onmy_genind, n.pca=20, n.da = 10,var.contrib = TRUE, pca.info=TRUE,pop = onmy_metadata2$TimePlace)
+plotn <- scatter(dapcn,xax=1,yax=2)
+#plota <- scatter(dapca,xax=1,yax=2)
+
+library(dartR)  # can not load... "package ‘SNPRelate’ is not available for this version of R"
+
+gelin_neutral <- gi2gl(onmy_genind_neutral)
+#gelin_adp <- gi2gl(genind_adp)
+#gelin_nonfilter <- gi2gl(dgenind)
+#pcan <- glPca(gelin_neutral, center = F, scale = F, nf =50)
+#pcaa <- glPca(gelin_adp, center = F, scale = F, nf =50)
+#pcap <- glPca(gelin_nonfilter, center = F, scale = F, nf =50)
+```
 
