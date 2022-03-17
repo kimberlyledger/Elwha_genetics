@@ -1,0 +1,277 @@
+---
+title: "Elwha Steelhead Pop Gen - Time"
+author: "Kimberly Ledger"
+date: "3/17/2022"
+output: github_document
+---
+
+taking a different approach to pop genetics analyses - some of this is copied from previous code... 
+
+### load libraries
+```{r, message=FALSE}
+library(vcfR) #this package is used to visualize and manipulate VCF files
+library(adegenet) #this package is used for analysis of genetic/genomic data 
+library(dplyr) # data manipulation
+library(tidyr) # data manipulation
+library(dartR)
+#library(pegas) #a package for pop gen data analysis
+#library(poppr) #a package for pop gen data analysis
+```
+
+
+# Part 1: Prepare the data
+
+## read in the steelhead (Oncorhynchus mykiss) metadata
+```{r}
+onmy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Steelhead_Formatted.csv")
+head(onmy_metadata)
+```
+
+## create column in sample metadata for location and timing 
+```{r}
+onmy_metadata <- onmy_metadata %>%
+  unite("TimePlace", c(Time, Location), sep= "_", remove = FALSE)
+```
+
+## read in the VCF file and extract genotypes
+```{r}
+onmy_vcf <- read.vcfR("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf")
+onmy_gt <- extract.gt(onmy_vcf)
+```
+
+## read in loci metadata
+```{r}
+onmy_loci_meta <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Steelhead_Locus_Key_kjl.csv")
+```
+
+## read in SNP coordinate data 
+```{r}
+onmy_snp_coord <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/SNP_Coordinates_CRITFC.csv")
+```
+
+join loci metadata and SNP coords 
+```{r}
+onmy_locus_join <- onmy_snp_coord %>%
+  left_join(onmy_loci_meta, by = "Locus")
+```
+
+note: loci on chromosome 25 do not have neutral/adaptive metadata included 
+
+## join all metatdata to extracted genotypes
+```{r}
+onmy_snp <- rownames(onmy_gt)
+
+onmy_gt_df <- as.data.frame(onmy_gt)
+onmy_gt_df$SNP <- onmy_snp
+
+onmy_gt_meta <- onmy_locus_join %>%
+  left_join(onmy_gt_df, by = "SNP")
+```
+
+## filter the metatdata to seperate neutral and adaptive loci 
+```{r}
+onmy_neutral <- onmy_gt_meta %>%
+  filter(Status == "Neutral")
+onmy_adaptive <- onmy_gt_meta %>%
+  filter(Status == "Adaptive")
+```
+
+## make dataframe of just gt's of neutral loci 
+```{r}
+onmy_n_gt <- onmy_neutral[,c(5,13:1181)]
+rownames(onmy_n_gt) <- onmy_neutral$SNP
+onmy_n_gt <- onmy_n_gt[,-1] 
+```
+
+## transpose neutral genotypes and combine with sample metadata 
+```{r}
+onmy_n_gt_t <- t(onmy_n_gt)
+onmy_n_gt_t <- as.data.frame(onmy_n_gt_t)
+onmy_n_gt_t$Sample_ID <- rownames(onmy_n_gt_t)
+
+onmy_n_df <- onmy_n_gt_t %>%
+  left_join(onmy_metadata, by = "Sample_ID")
+```
+
+## now that the gt's and metadata are in the same order, create a genind object 
+```{r}
+geno_n <- onmy_n_df[,c(1:242)]
+rownames(geno_n) <- onmy_n_df[,243]
+col_geno_n <- gsub("\\.", "_", colnames(geno_n))
+colnames(geno_n) <- col_geno_n
+
+meta_n <- onmy_n_df[,-c(1:242)]
+
+loci <- colnames(geno_n)
+ind <- rownames(geno_n)
+location <- meta_n$Location
+time <- meta_n$Time
+tp <- meta_n$TimePlace
+
+# make multiple genind objects each with different population criteria... maybe there is a way to code all this into one object? 
+onmy_genind_loc <- df2genind(geno_n,
+                         sep="/",
+                         ind.names=ind,
+                         loc.names=loci, 
+                         pop = location,
+                         ploidy = 2)
+onmy_genind_loc
+
+onmy_genind_time <- df2genind(geno_n,
+                         sep="/",
+                         ind.names=ind,
+                         loc.names=loci, 
+                         pop = time,
+                         ploidy = 2)
+onmy_genind_time
+
+onmy_genind_tp <- df2genind(geno_n,
+                         sep="/",
+                         ind.names=ind,
+                         loc.names=loci, 
+                         pop = tp,
+                         ploidy = 2)
+onmy_genind_tp
+```
+
+
+# Part 2: HW test 
+
+## check for deviations from hardy-weinberg equilibrium (global) in the neutral loci
+```{r}
+onmy_neutral_hw <- data.frame(round(pegas::hw.test(onmy_genind_loc, B = 0), digits = 3)) #skipping permutation test
+
+onmy_neutral_out_of_hw <- onmy_neutral_hw %>%
+  filter(Pr.chi.2... < 0.05)
+
+nrow(onmy_neutral_out_of_hw)
+```
+
+## check for deviations from hardy-weinberg equilibrium at the population level - LOCATION AS POP
+```{r}
+onmy_neutral_hw_test <- data.frame(sapply(seppop(onmy_genind_loc), 
+                              function(ls) pegas::hw.test(ls, B = 0)[,3])) #skipping permutation test
+
+onmy_neutral_hw_chisq <- t(data.matrix(onmy_neutral_hw_test))
+
+Chisq.fdr <- matrix(p.adjust(onmy_neutral_hw_chisq,method="fdr"), 
+                    nrow=nrow(onmy_neutral_hw_chisq))
+
+# proportion of loci out of HWE 
+alpha=0.05
+Prop.loci.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 2, mean),
+                                   Chisq.fdr=apply(Chisq.fdr<alpha, 2, mean))
+#Prop.loci.out.of.HWE %>%
+#  filter(Chisq >= 0.5)
+Prop.loci.out.of.HWE %>%
+  filter(Chisq.fdr >= 0.5)
+
+# for each population, the proportion of loci out of HWE
+Prop.pops.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 1, mean), 
+           Chisq.fdr=apply(Chisq.fdr<alpha, 1, mean))
+Prop.pops.out.of.HWE   
+```
+
+## check for deviations from hardy-weinberg equilibrium at the population level - TIME AS POP
+```{r}
+onmy_neutral_hw_test <- data.frame(sapply(seppop(onmy_genind_time), 
+                              function(ls) pegas::hw.test(ls, B = 0)[,3])) #skipping permutation test
+
+onmy_neutral_hw_chisq <- t(data.matrix(onmy_neutral_hw_test))
+
+Chisq.fdr <- matrix(p.adjust(onmy_neutral_hw_chisq,method="fdr"), 
+                    nrow=nrow(onmy_neutral_hw_chisq))
+
+# proportion of loci out of HWE 
+alpha=0.05
+Prop.loci.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 2, mean),
+                                   Chisq.fdr=apply(Chisq.fdr<alpha, 2, mean))
+#Prop.loci.out.of.HWE %>%
+#  filter(Chisq >= 0.5)
+Prop.loci.out.of.HWE %>%
+  filter(Chisq.fdr >= 0.5)
+
+# for each population, the proportion of loci out of HWE
+Prop.pops.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 1, mean), 
+           Chisq.fdr=apply(Chisq.fdr<alpha, 1, mean))
+Prop.pops.out.of.HWE   
+```
+
+## check for deviations from hardy-weinberg equilibrium at the population level - TIME/LOCATION AS POP
+```{r}
+onmy_neutral_hw_test <- data.frame(sapply(seppop(onmy_genind_tp), 
+                              function(ls) pegas::hw.test(ls, B = 0)[,3])) #skipping permutation test
+
+onmy_neutral_hw_chisq <- t(data.matrix(onmy_neutral_hw_test))
+
+Chisq.fdr <- matrix(p.adjust(onmy_neutral_hw_chisq,method="fdr"), 
+                    nrow=nrow(onmy_neutral_hw_chisq))
+
+# proportion of loci out of HWE 
+alpha=0.05
+Prop.loci.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 2, mean),
+                                   Chisq.fdr=apply(Chisq.fdr<alpha, 2, mean))
+#Prop.loci.out.of.HWE %>%
+#  filter(Chisq >= 0.5)
+Prop.loci.out.of.HWE %>%
+  filter(Chisq.fdr >= 0.5)
+
+# for each population, the proportion of loci out of HWE
+Prop.pops.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 1, mean), 
+           Chisq.fdr=apply(Chisq.fdr<alpha, 1, mean))
+Prop.pops.out.of.HWE             
+```
+
+**only one loci out of HWE when both location and time are considered (and accounting for FDR)** 
+
+
+
+# Part 3: DAPC and PCA 
+
+```{r}
+#dapc <- dapc(onmy_genind_loc, n.pca = 20, n.da = 10, var.contrib = TRUE, pca.info=TRUE)
+```
+
+**Error in if (any(f1 < tol)) { : missing value where TRUE/FALSE needed**
+
+```{r}
+gelin_n <- gi2gl(onmy_genind_loc)
+pca_n <- glPca(gelin_n, center = T, scale = F, nf = 50)
+```
+
+
+```{r}
+PCn <- data.frame(pca_n$scores)
+
+PCn %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = location, shape = time), size = 3, alpha=0.6) + 
+  labs(color = "Location", shape = "Time")+
+  scale_color_manual(values=c("#A9AFD1", "#9D5C63","#29335C", "orange")) + 
+  theme_classic() + 
+  theme(axis.text = element_text(size = 10, face = "bold"), 
+        axis.title = element_text(size = 13, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")) 
+
+```
+```{r}
+PCn %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = time, shape = location), size = 3, alpha=0.6) + 
+  labs(color = "Time", shape = "Location")+
+  scale_color_manual(values=c("#A9AFD1", "#9D5C63","#29335C")) + 
+  theme_classic() + 
+  theme(axis.text = element_text(size = 10, face = "bold"), 
+        axis.title = element_text(size = 13, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")) 
+
+```
+
