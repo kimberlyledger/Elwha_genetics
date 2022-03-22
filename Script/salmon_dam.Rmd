@@ -18,9 +18,11 @@ library(dartR)
 library(dplyr)
 library(tidyverse)
 library(factoextra)
+library(OutFLANK)
 ```
 
 #Read the table 
+ 
 ```{r}
 meta <- read.csv("Elwha_Chinook_Formatted.csv")
 geno <- read.table("Chinook_Elwha_genotypes.txt")
@@ -30,6 +32,7 @@ geno[geno== 'N,N'] <- NA
 
 
 #transfer the data type
+
 ```{r}
 
 #rename the column name to get rid of "." and  "'"
@@ -52,7 +55,8 @@ dgenind <- df2genind(geno,
 
 ```
 
-#HW test and LD test
+#HW test
+
 ```{r}
 hwe <- hw.test(dgenind)
 colnames(hwe)[3] = "P"
@@ -70,8 +74,28 @@ genind_adp <- dgenind[loc=adp_index]
 
 ```
 
+#Fst Outlier 
+
+It seems there is no Fst outlier in the SNP.array
+
+```{r}
+SNPmat <- data.frame(dgenind@tab)
+SNPmat[is.na(SNPmat)==TRUE] <- 9
+loc <- colnames(SNPmat)
+indi <- rownames(SNPmat)
+pop <- dgenind@pop
+fstinput <- MakeDiploidFSTMat(SNPmat = SNPmat, locusNames = loc, popNames = pop)
+outlier <- OutFLANK(fstinput, LeftTrimFraction = 0.01, RightTrimFraction = 0.05, NumberOfSamples = 3, Hmin = 0.1, qthreshold = 0.01)
+OutFLANKResultsPlotter(outlier, withOutliers = TRUE, NoCorr = TRUE, Hmin = 0.1, binwidth = 0.005,
+                       Zoom = FALSE, RightZoomFraction = 0.05,titletext = NULL)
+fst <- pOutlierFinderChiSqNoCorr(fstinput,Fstbar=outlier$FSTNoCorrbar,
+                                dfInferred=outlier$dfInferred,qthreshold=0.05,Hmin=0.1)
+list_outlier <- fst$OutlierFlag == T 
+```
+
 
 #PCA & DAPC
+
 ```{r}
 dapcn <- dapc(genind_neutral, n.pca=20, n.da = 10,var.contrib = TRUE, pca.info=TRUE)
 dapca <- dapc(genind_adp, n.pca=20, n.da = 10,var.contrib = TRUE, pca.info=TRUE,pop = meta1$Time)
@@ -133,7 +157,7 @@ dev.off()
 k <- c(2:7)
 i <- c(1:6)
 clust <- function(K,data){
-  clust<- snapclust(data, k=K, pop.ini = NULL,)
+  clust<- snapclust(data, k=K, pop.ini = NULL,hybrids = F)
   return(clust)
 }
 
@@ -145,7 +169,26 @@ binding <- function(i){
 }
 qmeta <- lapply(i, binding)
 col <- 20 #the location of prob.1
+log_AIC <- list()
+log_BIC <- list()
+log_AICc <- list()
+for (a in i) {
+  log_AIC[[a]] <- AIC(qvalue[[a]])
+  log_AICc[[a]] <- AICc(qvalue[[a]])
+  log_BIC[[a]] <- BIC(qvalue[[a]])
+  
+}
+log_AIC <- unlist(log_AIC)
+log_AICc <- unlist(log_AICc)
+log_BIC <- unlist(log_BIC)
+icdata <- data.frame(K=seq(2,7,1),
+             AIC=log_AIC,
+             AICc=log_AICc,
+             BIC=log_BIC)
 
+icdata %>% ggplot(aes(x=K, y=AIC))+ geom_line(size=1.2) + geom_point(size=2) + theme_classic()
+icdata %>% ggplot(aes(x=K, y=AICc))+ geom_line(size=1.2) + geom_point(size=2) + theme_classic()
+icdata %>% ggplot(aes(x=K, y=BIC))+ geom_line(size=1.2) + geom_point(size=2) + theme_classic()
 tidyq <- function(i){
   lastcol <- colnames(qmeta[[i-1]])[col+i-1]
   admix_gg <- data.frame(qmeta[[i-1]]) %>% gather(key = clustname, value = "clust", proba.1:paste(lastcol)) %>% 
@@ -162,14 +205,14 @@ admixgg4 <- tidyq(4)
 admixgg5 <- tidyq(5)
 admixgg6 <- tidyq(6)
 admixgg7 <- tidyq(7)
-adplot <- function(file){
+adplot <- function(file,i){
     file %>%  ggplot() + geom_col(aes(x=SPP_ID3, y=clust, fill=group),width=1) + 
     scale_x_discrete(expand=c(0,0)) + 
     scale_y_continuous(expand=c(0,0)) +
     scale_fill_manual(values=c("#CDC6A5","#A69BB6","#A3869A","#A0717F","#9D5C63","#634860", "#29335C"))+
     theme_classic(base_size = 10) +
     theme(axis.text.x = element_text(angle = 80, hjust = 0.5, size = 7)) +
-    labs(x="", y="K = 2") +
+    labs(x="", y= paste("K =", i )) +
     facet_grid(.~Location, scales = "free_x", space = "free_x") +
     theme(strip.background = element_blank(), 
           strip.text = element_text(size = 11, face = "bold"),
@@ -182,54 +225,14 @@ adplot <- function(file){
           axis.ticks.y=element_blank(),
           legend.position = "none") 
 }
-(adplot2 <- adplot(admixgg2))
-(adplot3 <- adplot(admixgg3))
-(adplot4 <- adplot(admixgg4))
-(adplot5 <- adplot(admixgg5))
-(adplot6 <- adplot(admixgg6))
-(adplot7 <- adplot(admixgg7))
-(plot2 <- admixgg2 %>% 
-    ggplot() + geom_col(aes(x=SPP_ID3, y=clust, fill=group),width=1) + 
-    scale_x_discrete(expand=c(0,0)) + 
-    scale_y_continuous(expand=c(0,0)) +
-    scale_fill_manual(values=c("#6bc5d2","#e3c878","#e688a1","#ffba92","#d6e4aa"))
-                +
-    theme_classic(base_size = 10) +
-    theme(axis.text.x = element_text(angle = 80, hjust = 0.5, size = 7)) +
-    labs(x="", y="K = 2") +
-    facet_grid(.~Location, scales = "free_x", space = "free_x") +
-    theme(strip.background = element_blank(), 
-          strip.text = element_text(size = 11, face = "bold"),
-          panel.spacing = unit(0, "lines"),
-          panel.border = element_rect(fill = NA, color = "gray40"),
-          axis.title.y = element_text(size = 12, face = "bold"),
-          axis.text.x=element_blank(),
-          axis.text.y=element_blank(),
-          axis.ticks.x=element_blank(),
-          axis.ticks.y=element_blank(),
-          legend.position = "none")) 
+(adplot2 <- adplot(admixgg2,2))
+(adplot3 <- adplot(admixgg3,3))
+(adplot4 <- adplot(admixgg4,4))
+(adplot5 <- adplot(admixgg5,5))
+(adplot6 <- adplot(admixgg6,6))
+(adplot7 <- adplot(admixgg7,7))
 
-(plot3 <- admixgg3 %>% 
-    ggplot() + geom_col(aes(x=SPP_ID3, y=clust, fill=group),width=1) + 
-    scale_x_discrete(expand=c(0,0)) + 
-    scale_y_continuous(expand=c(0,0)) +
-    scale_fill_manual(name="Cluster",
-                      values=c("#6bc5d2","#e3c878","#e688a1","#ffba92","#d6e4aa"),
-                      labels=c("proba.1","proba.2", "proba.3"))+
-    theme_classic(base_size = 10) +
-    theme(axis.text.x = element_text(angle = 80, hjust = 0.5, size = 7)) +
-    labs(x="", y="K = 3") +
-    facet_grid(.~Location, scales = "free_x", space = "free_x") +
-    theme(strip.background = element_blank(), 
-          strip.text = element_text(size = 11, face = "bold"),
-          panel.spacing = unit(0, "lines"),
-          panel.border = element_rect(fill = NA, color = "gray40"),
-          axis.title.y = element_text(size = 12, face = "bold"),
-          axis.text.x=element_blank(),
-          axis.text.y=element_blank(),
-          axis.ticks.x=element_blank(),
-          axis.ticks.y=element_blank(),
-          legend.position = "none")) 
+
 
 ```
 
