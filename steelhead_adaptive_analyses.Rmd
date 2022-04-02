@@ -24,6 +24,9 @@ library(dartR)
 steelhead.metadata <- read_csv("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/Elwha_Steelhead_Formatted.csv")
 steelhead.vcf <- read.vcfR("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/Elwha_GTSeq_Sans_CCT.vcf.gz")
 steelhead.genind <- vcfR2genind(steelhead.vcf, sep = "/")
+steelhead.gt.vcf <- as.data.frame(t(extract.gt(steelhead.vcf, return.alleles = TRUE))) #t for transpose rows and columns
+colnames(steelhead.gt.vcf) <- gsub("\\.", "_", colnames(steelhead.gt.vcf)) # Replace ".' to "_" in loci names
+#steelhead.gt.genind <- df2genind(steelhead.gt.vcf, sep = "/")
 steelhead.snp <- read_csv("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/SNP_Coordinates_CRITFC.csv")
 Steelhead.Locus_Key <- read_excel("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/Steelhead_Locus_Key.xlsx")
 ```
@@ -56,12 +59,17 @@ invisible(steelhead_pop$X[lengths(steelhead_pop$X) == 0] <- NA_character_)
 invisible(steelhead_pop$Y[lengths(steelhead_pop$Y) == 0] <- NA_character_)
 steelhead_coord <- cbind(steelhead_pop$Sample_ID, steelhead_pop$X, steelhead_pop$Y)
 steelhead.genind@other$xy <- steelhead_coord
+#steelhead.gt.genind@other$xy <- steelhead_coord
 ```
 
 ##Divide pop by "Time" and "Location"
 ```{r}
 strata(steelhead.genind) <- steelhead_pop
 setPop(steelhead.genind) <- ~Time/Location
+steelhead.genind <- steelhead.genind[!is.na(steelhead.genind@strata$Time) & !is.na(steelhead.genind@strata$Location)] #Remove individuals without pop info
+#strata(steelhead.gt.genind) <- steelhead_pop
+#setPop(steelhead.gt.genind) <- ~Time/Location
+#steelhead.gt.genind <- steelhead.gt.genind[!is.na(steelhead.gt.genind@strata$Time) & !is.na(steelhead.gt.genind@strata$Location)] #Remove individuals without pop info
 ```
 
 ##Filter adaptive loci only, removing "character(0)" loci
@@ -73,11 +81,13 @@ for (i in 1:nrow(steelhead_adaptive)){
 toRetain <- steelhead_adaptive$SnpPos[lengths(steelhead_adaptive$SnpPos) != 0] #Remove loci without name (character(0))
 toRetain <- gsub("\\.", "_", unlist(toRetain)) # Replace ".' to "_"
 steelhead_adaptive.genind <- steelhead.genind[loc=unlist(toRetain)]
-# steelhead_adaptive.genind locus name change from SnpPos to SnpName? - manually after allele frequency calculation
+steelhead_adaptive.gt.vcf <- steelhead.gt.vcf[, names(steelhead.gt.vcf) %in% toRetain] #Retain adaptive loci only
+#steelhead_adaptive.genind locus name change from SnpPos to SnpName? - manually after allele frequency calculation
 ```
 
 ##HWE test for each pop (by "Time" or by "Location")
 ```{r}
+steelhead_pop <- steelhead_pop %>% filter(!is.na(steelhead_pop$Time) & !is.na(steelhead_pop$Location)) #Remove individuals without pop info
 strata(steelhead_adaptive.genind) <- steelhead_pop
 
 setPop(steelhead_adaptive.genind) <- ~Time #by "Time"
@@ -109,7 +119,7 @@ steelhead_adaptive.PCA$Color <- unlist(steelhead_adaptive.PCA$Color)
 steelhead_pop$Time <- factor(steelhead_pop$Time, levels = c("Pre", "During", "Post")) 
 steelhead_adaptive.PCA$Shape <- steelhead_pop$Time
 steelhead_adaptive.PCA$Shape <- unlist(steelhead_adaptive.PCA$Shape)
-steelhead_adaptive.PCA %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Color, shape = Shape), size = 3, alpha=0.8) + 
+steelhead_adaptive.PCA %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Color, shape = Shape), size = 3, alpha=0.5) + 
   labs(color = "Location", shape = "Time")+
   theme_classic() + 
   theme(axis.text = element_text(size = 10, face = "bold"), 
@@ -123,19 +133,125 @@ steelhead_adaptive.PCA %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Co
         plot.title = element_text(size = 18, face = "bold"))
 ```
 
-##Plot allele frequency heatmaps
+##Plot allele frequency heatmaps (*check summer-run/winter-run alleles and modify)
 ```{r}
 library(RColorBrewer)
 library(gplots)
-#Change row order as following: Pre_AD, Pre_ID, Pre_BD, During_BD, Post_AD, Post_ID, Post_BD, Post_SBLR, NA_NA
-steelhead_af_ordered <- steelhead_af[c(2, 8, 1, 7, 3, 5, 6, 9, 4),]
+#Change row order as following: Pre_AD, Pre_ID, Pre_BD, During_BD, Post_AD, Post_ID, Post_BD, Post_SBLR
+steelhead_af_ordered <- steelhead_af[c(2, 7, 1, 6, 3, 4, 5, 8),]
 write.table(steelhead_af_ordered, "steelhead_af.txt", sep = "\t")
 steelhead_af_pruned <- read.delim("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/steelhead_af_pruned.txt", row.names=1) #Reread manually pruned table to have major allele frequency only for each locus 
 steelhead_af_pruned <- as.matrix(steelhead_af_pruned)
 steelhead_af_pruned <- steelhead_af_pruned[,order(colnames(steelhead_af_pruned))]
 heatmap_color <- colorRampPalette(brewer.pal(10,"RdYlBu"))
 steelhead.heatmap_all <- heatmap.2(steelhead_af_pruned, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", density.info = "none", xlab = "Locus", labCol = "", margins = c(2.5,10))
+
+steelhead.heatmap_all_dendro <- heatmap.2(steelhead_af_pruned, col=heatmap_color, trace = "none", density.info = "none", xlab = "Locus", labCol = "", margins = c(2.5,10)) #Heatmap with dendrogram option
+
 steelhead_af_005 <- read.delim("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/steelhead_af_pruned_005.txt", row.names=1) #Manually filtered loci to include higher 5% of them in terms of absolute value of allele frequency change between PreDam and PostDam for any of AD, ID, BD
 steelhead_af_005 <- as.matrix(steelhead_af_005)
-steelhead.heatmap_005 <- heatmap.2(steelhead_af_005, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", density.info = "none", margins = c(10,10))
+steelhead.heatmap_005 <- heatmap.2(steelhead_af_005, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", density.info = "none", srtCol = 45, margins = c(10,10))
+steelhead.heatmap_005_dendro <- heatmap.2(steelhead_af_005, col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
+```
+
+##Calculate (observed) genotype frequencies for each pop (Time/Location) and save them to manually re-arrange them
+```{r}
+library(mixIndependR)
+steelhead_pop$Time_Location <- paste0(steelhead_pop$Time,"_",steelhead_pop$Location)
+steelhead_adaptive.gt.vcf <- as_tibble(steelhead_adaptive.gt.vcf, rownames = "Sample_ID")
+steelhead_adaptive.gt.vcf <- left_join(steelhead_adaptive.gt.vcf, steelhead_pop %>% select(Sample_ID, Time_Location), by = c("Sample_ID" = "Sample_ID"))
+steelhead_adaptive.gt.vcf <- steelhead_adaptive.gt.vcf %>% filter(!is.na(steelhead_adaptive.gt.vcf$Time_Location)) #Remove individuals without pop info
+steelhead_adaptive$SnpPos <- gsub("\\.", "_", steelhead_adaptive$SnpPos)
+steelhead_adaptiveSNP.gt.vcf <- steelhead_adaptive.gt.vcf
+
+#Change loci names from SnpPos to SnpName (="SNPPIT or Alias")
+for (i in 1:ncol(steelhead_adaptiveSNP.gt.vcf[-c(1,length(steelhead_adaptiveSNP.gt.vcf))])){
+  colnames(steelhead_adaptiveSNP.gt.vcf)[i+1] <- as.character(steelhead_adaptive[(which(steelhead_adaptive$SnpPos == colnames(steelhead_adaptiveSNP.gt.vcf)[i+1])),3]) #3rd column of "steelhead_adaptive" includes SnpName
+}
+
+steelhead_adaptiveSNP.gt.vcf_PreAD <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Pre_AD",]
+steelhead_adaptiveSNP.gt.vcf_PostAD <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Post_AD",]
+steelhead_adaptiveSNP.gt.vcf_PreID <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Pre_ID",]
+steelhead_adaptiveSNP.gt.vcf_PostID <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Post_ID",]
+steelhead_adaptiveSNP.gt.vcf_PreBD <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Pre_BD",]
+steelhead_adaptiveSNP.gt.vcf_DuringBD <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "During_BD",]
+steelhead_adaptiveSNP.gt.vcf_PostBD <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Post_BD",]
+steelhead_adaptiveSNP.gt.vcf_PostSBLR <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Post_SBLR",]
+
+steelhead_gf_PreAD <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_PreAD[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_PreAD)-1)],"/",expect=FALSE) #expect=FALSE to calculate "observed" genotype frequencies
+steelhead_gf_PreAD[] <- sapply(steelhead_gf_PreAD, function(x){x/sum(x)}) #Make genotype frequency as "frequency"; default is observed numbers"
+steelhead_gf_PreAD$Time_Location <- "Pre_AD"
+steelhead_gf_PostAD <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_PostAD[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_PostAD)-1)],"/",expect=FALSE)
+steelhead_gf_PostAD[] <- sapply(steelhead_gf_PostAD, function(x){x/sum(x)})
+steelhead_gf_PostAD$Time_Location <- "Post_AD"
+write.table(steelhead_gf_PreAD, file = "steelhead_gf_PreAD.txt", sep = "\t")
+write.table(steelhead_gf_PostAD, file = "steelhead_gf_PostAD.txt", sep = "\t")
+
+steelhead_gf_PreID <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_PreID[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_PreID)-1)],"/",expect=FALSE)
+steelhead_gf_PreID[] <- sapply(steelhead_gf_PreID, function(x){x/sum(x)})
+steelhead_gf_PreID$Time_Location <- "Pre_ID"
+steelhead_gf_PostID <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_PostID[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_PostID)-1)],"/",expect=FALSE)
+steelhead_gf_PostID[] <- sapply(steelhead_gf_PostID, function(x){x/sum(x)})
+steelhead_gf_PostID$Time_Location <- "Post_ID"
+write.table(steelhead_gf_PreID, file = "steelhead_gf_PreID.txt", sep = "\t")
+write.table(steelhead_gf_PostID, file = "steelhead_gf_PostID.txt", sep = "\t")
+
+steelhead_gf_PreBD <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_PreBD[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_PreBD)-1)],"/",expect=FALSE)
+steelhead_gf_PreBD[] <- sapply(steelhead_gf_PreBD, function(x){x/sum(x)})
+steelhead_gf_PreBD$Time_Location <- "Pre_BD"
+steelhead_gf_DuringBD <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_DuringBD[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_DuringBD)-1)],"/",expect=FALSE)
+steelhead_gf_DuringBD[] <- sapply(steelhead_gf_DuringBD, function(x){x/sum(x)})
+steelhead_gf_DuringBD$Time_Location <- "During_BD"
+steelhead_gf_PostBD <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_PostBD[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_PostBD)-1)],"/",expect=FALSE)
+steelhead_gf_PostBD[] <- sapply(steelhead_gf_PostBD, function(x){x/sum(x)})
+steelhead_gf_PostBD$Time_Location <- "Post_BD"
+write.table(steelhead_gf_PreBD, file = "steelhead_gf_PreBD.txt", sep = "\t")
+write.table(steelhead_gf_DuringBD, file = "steelhead_gf_DuringBD.txt", sep = "\t")
+write.table(steelhead_gf_PostBD, file = "steelhead_gf_PostBD.txt", sep = "\t")
+
+steelhead_gf_PostSBLR <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_PostSBLR[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_PostSBLR)-1)],"/",expect=FALSE)
+steelhead_gf_PostSBLR[] <- sapply(steelhead_gf_PostSBLR, function(x){x/sum(x)})
+steelhead_gf_PostSBLR$Time_Location <- "Post_SBLR"
+write.table(steelhead_gf_PostSBLR, file = "steelhead_gf_PostSBLR.txt", sep = "\t")
+
+#After this, in Excel, manually separate loci according to positions on Greb1 (Premature/Mature and Omy5 (Ancestral/Recombined) and combine files of same Location (e.g. steelhead_gf_BD; combined PreBD + DuringBD + PostBD), because "GenotypeFreq" function removes Sample ID. But you can just make combined files in advacne here too, as they retain Pop info.
+```
+
+##Plot allele frequency heatmaps (*check summer-run/winter-run alleles and modify)
+```{r}
+#Read files of GREB1L loci genotype frequencies for each run timing (summer-run, heterozygotes, winter-run)
+steelhead_gf_summerrun <- read_excel("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/Elwha_genetics/steelhead_gf_summerrun.xlsx")
+steelhead_gf_summerrun <- as.matrix(steelhead_gf_summerrun)
+Popinfo <- steelhead_gf_summerrun[,1]
+steelhead_gf_summerrun <- steelhead_gf_summerrun[,-1]
+steelhead_gf_summerrun <- apply(steelhead_gf_summerrun, 2, as.numeric)
+rownames(steelhead_gf_summerrun) <- Popinfo
+
+heatmap_color <- colorRampPalette(brewer.pal(10,"RdYlBu"))
+
+steelhead.heatmap_summerrun <- heatmap.2(steelhead_gf_summerrun, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", srtCol = 45, density.info = "none", margins = c(10,10))
+
+steelhead.heatmap_summerrun_dendro <- heatmap.2(steelhead_gf_summerrun, col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
+
+
+steelhead_gf_heterozygote <- read_excel("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/Elwha_genetics/steelhead_gf_heterozygote.xlsx")
+steelhead_gf_heterozygote <- as.matrix(steelhead_gf_heterozygote)
+steelhead_gf_heterozygote <- steelhead_gf_heterozygote[,-1]
+steelhead_gf_heterozygote <- apply(steelhead_gf_heterozygote, 2, as.numeric)
+rownames(steelhead_gf_heterozygote) <- Popinfo
+
+steelhead.heatmap_heterozygote <- heatmap.2(steelhead_gf_heterozygote, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", srtCol = 45, density.info = "none", margins = c(10,10))
+
+steelhead.heatmap_heterozygote_dendro <- heatmap.2(steelhead_gf_heterozygote, col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
+
+
+steelhead_gf_winterrun <- read_excel("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/Elwha_genetics/steelhead_gf_winterrun.xlsx")
+steelhead_gf_winterrun <- as.matrix(steelhead_gf_winterrun)
+steelhead_gf_winterrun <- steelhead_gf_winterrun[,-1]
+steelhead_gf_winterrun <- apply(steelhead_gf_winterrun, 2, as.numeric)
+rownames(steelhead_gf_winterrun) <- Popinfo
+
+steelhead.heatmap_winterrun <- heatmap.2(steelhead_gf_winterrun, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", srtCol = 45, density.info = "none", margins = c(10,10))
+
+steelhead.heatmap_winterrun_dendro <- heatmap.2(steelhead_gf_winterrun, col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
 ```
