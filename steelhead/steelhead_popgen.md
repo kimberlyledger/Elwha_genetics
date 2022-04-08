@@ -757,7 +757,7 @@ genos <- read.pcadapt("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.v
     ## Summary:
     ## 
     ##  - input file:               ~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf
-    ##  - output file:              /var/folders/t2/wbsd_3lj75g73ymn1rtjbwj00000gn/T//RtmpeHwSXq/file20eb59f8ae83.pcadapt
+    ##  - output file:              /var/folders/t2/wbsd_3lj75g73ymn1rtjbwj00000gn/T//Rtmp5eJ2iS/file1261c2097bd64.pcadapt
     ## 
     ##  - number of individuals detected:   1169
     ##  - number of loci detected:      336
@@ -1001,7 +1001,7 @@ remove outlier loci - is there a way to remove loci from within the
 pcadapt object? or the vcf object?
 
 ``` r
-outliers
+outliers #i believe these values are associated with columns in the geno matrix 
 ```
 
     ##  [1]  20  23 151 152 153 155 156 157 160 162 283 296 298 299 300 301 302 303 304
@@ -1015,31 +1015,692 @@ dim(geno)
 
 ``` r
 geno_reduced <- geno[-outliers,]
-dim(geno_reduced)
+dim(geno_reduced)   # there are 23 fewer columns now but i'm not sure if i removed the correct ones... 
 ```
 
     ## [1]  313 1169
 
 ``` r
-#write.vcf(geno_reduced, "~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT_reduced.vcf.gz")
+#try making a tidy data frame 
+geno_tidy <- vcfR2tidy(onmy_vcf, single_frame = T)
+```
+
+    ## Extracting gt element GT
+
+``` r
+#write.vcf(geno_reduced, "~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT_reduced.vcf")
 #this does not work. 
 ```
 
 ## Part 7: Clustering with SNMF (similar to ‘STRUCTURE’)
 
-convert vcf to geno - this crashes my RStudio…
+this uses the package LEA
 
 ``` r
-#library('LEA')
-
-#mygeno <- vcf2geno("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf")
+library('LEA')
 ```
+
+### convert the genind to structure
+
+``` r
+# Function to export to STRUCTURE format from genind object.
+# genind objects are created in the R package adegenet.  The function below is an R function.
+# Lindsay V. Clark, 26 July 2015
+
+# obj: genind object
+# file: file name to write
+# pops: whether to include population info in the file
+# Function is flexible with regards to ploidy, although genotypes are
+# considered to be unambiguous.
+# Missing data must be recorded as NA in obj@tab.
+
+# example use: 
+# data(nancycats)
+# genind2structure(nancycats, file="nancy_structure.txt", pops=TRUE)
+
+genind2structure <- function(obj, file="", pops=FALSE){
+  if(!"genind" %in% class(obj)){
+    warning("Function was designed for genind objects.")
+  }
+  
+  # get the max ploidy of the dataset
+  pl <- max(obj@ploidy)
+  # get the number of individuals
+  S <- adegenet::nInd(obj)
+  # column of individual names to write; set up data.frame
+  tab <- data.frame(ind=rep(indNames(obj), each=pl))
+  # column of pop ids to write
+  if(pops){
+    popnums <- 1:adegenet::nPop(obj)
+    names(popnums) <- as.character(unique(adegenet::pop(obj)))
+    popcol <- rep(popnums[as.character(adegenet::pop(obj))], each=pl)
+    tab <- cbind(tab, data.frame(pop=popcol))
+  }
+  loci <- adegenet::locNames(obj) 
+  # add columns for genotypes
+  tab <- cbind(tab, matrix(-9, nrow=dim(tab)[1], ncol=adegenet::nLoc(obj),
+                           dimnames=list(NULL,loci)))
+  
+  # begin going through loci
+  for(L in loci){
+    thesegen <- obj@tab[,grep(paste("^", L, "\\.", sep=""), 
+                              dimnames(obj@tab)[[2]]), 
+                        drop = FALSE] # genotypes by locus
+    al <- 1:dim(thesegen)[2] # numbered alleles
+    for(s in 1:S){
+      if(all(!is.na(thesegen[s,]))){
+        tabrows <- (1:dim(tab)[1])[tab[[1]] == indNames(obj)[s]] # index of rows in output to write to
+        tabrows <- tabrows[1:sum(thesegen[s,])] # subset if this is lower ploidy than max ploidy
+        tab[tabrows,L] <- rep(al, times = thesegen[s,])
+      }
+    }
+  }
+# export table
+write.table(tab, file=file, sep="\t", quote=FALSE, row.names=FALSE)
+}
+```
+
+convert
+
+``` r
+genind2structure(onmy_genind, file="~/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure.txt", pops=TRUE)
+```
+
+convert struture text to geno - NOTE: i had to open the
+“onmy_structure.txt” file and change “-9” to “9” before running the
+struct2geno function
+
+``` r
+struct2geno("~/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt", ploidy = 2, FORMAT = 2, extra.row = 1, extra.column = 1)
+```
+
+    ## Input file in the STRUCTURE format. The genotypic matrix has 1169 individuals and 337 markers. 
+    ## The number of extra rows is 1 and the number of extra columns is 1 .
+    ## The input file contains no missing genotypes. 
+    ## Output files: ~/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno  .lfmm.
 
 estimate K
 
 ``` r
-#snmf2 <- LEA::snmf("stickleback.geno", K=1:8, ploidy=2, entropy=T, 
-#                   alpha=100, project="new")
-#par(mfrow=c(1,1))
-#plot(snmf2, col="blue4", cex=1.4, pch=19)
+snmf2 <- LEA::snmf("~/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno", K=1:8, ploidy=2, entropy=T, 
+                   alpha=100, project="new")
 ```
+
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## [1] 386706996
+    ## [1] "*************************************"
+    ## [1] "*          create.dataset            *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)                 1169
+    ##         -L (number of loci)                        1005
+    ##         -s (seed random init)                      386706996
+    ##         -r (percentage of masked data)             0.05
+    ##         -x (genotype file in .geno format)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -o (output file in .geno format)           /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ## 
+    ##  Write genotype file with masked data, /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "* sNMF K = 1  repetition 1      *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)             1169
+    ##         -L (number of loci)                    1005
+    ##         -K (number of ancestral pops)          1
+    ##         -x (input file)                        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         -q (individual admixture file)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K1/run1/onmy_structure9.txt_r1.1.Q
+    ##         -g (ancestral frequencies file)        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K1/run1/onmy_structure9.txt_r1.1.G
+    ##         -i (number max of iterations)          200
+    ##         -a (regularization parameter)          100
+    ##         -s (seed random init)                  140278313561652
+    ##         -e (tolerance error)                   1E-05
+    ##         -p (number of processes)               1
+    ##         - diploid
+    ## 
+    ## Read genotype file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## 
+    ## Main algorithm:
+    ## 
+    ## Least-square error: 402018.882014
+    ## Write individual ancestry coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K1/run1/onmy_structure9.txt_r1.1.Q:      OK.
+    ## Write ancestral allele frequency coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K1/run1/onmy_structure9.txt_r1.1.G:   OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "*    cross-entropy estimation       *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)         1169
+    ##         -L (number of loci)                1005
+    ##         -K (number of ancestral pops)      1
+    ##         -x (genotype file)                 /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -q (individual admixture)          /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K1/run1/onmy_structure9.txt_r1.1.Q
+    ##         -g (ancestral frequencies)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K1/run1/onmy_structure9.txt_r1.1.G
+    ##         -i (with masked genotypes)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         - diploid
+    ## 
+    ## Cross-Entropy (all data):     0.581668
+    ## Cross-Entropy (masked data):  0.580992
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## [1] "*************************************"
+    ## [1] "* sNMF K = 2  repetition 1      *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)             1169
+    ##         -L (number of loci)                    1005
+    ##         -K (number of ancestral pops)          2
+    ##         -x (input file)                        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         -q (individual admixture file)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K2/run1/onmy_structure9.txt_r1.2.Q
+    ##         -g (ancestral frequencies file)        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K2/run1/onmy_structure9.txt_r1.2.G
+    ##         -i (number max of iterations)          200
+    ##         -a (regularization parameter)          100
+    ##         -s (seed random init)                  140278313561652
+    ##         -e (tolerance error)                   1E-05
+    ##         -p (number of processes)               1
+    ##         - diploid
+    ## 
+    ## Read genotype file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## 
+    ## Main algorithm:
+    ##  [                                                                           ]
+    ##  [=======]
+    ## Number of iterations: 18
+    ## 
+    ## Least-square error: 365879.166937
+    ## Write individual ancestry coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K2/run1/onmy_structure9.txt_r1.2.Q:      OK.
+    ## Write ancestral allele frequency coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K2/run1/onmy_structure9.txt_r1.2.G:   OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "*    cross-entropy estimation       *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)         1169
+    ##         -L (number of loci)                1005
+    ##         -K (number of ancestral pops)      2
+    ##         -x (genotype file)                 /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -q (individual admixture)          /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K2/run1/onmy_structure9.txt_r1.2.Q
+    ##         -g (ancestral frequencies)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K2/run1/onmy_structure9.txt_r1.2.G
+    ##         -i (with masked genotypes)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         - diploid
+    ## 
+    ## Cross-Entropy (all data):     0.516381
+    ## Cross-Entropy (masked data):  0.517739
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## [1] "*************************************"
+    ## [1] "* sNMF K = 3  repetition 1      *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)             1169
+    ##         -L (number of loci)                    1005
+    ##         -K (number of ancestral pops)          3
+    ##         -x (input file)                        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         -q (individual admixture file)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.Q
+    ##         -g (ancestral frequencies file)        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.G
+    ##         -i (number max of iterations)          200
+    ##         -a (regularization parameter)          100
+    ##         -s (seed random init)                  140278313561652
+    ##         -e (tolerance error)                   1E-05
+    ##         -p (number of processes)               1
+    ##         - diploid
+    ## 
+    ## Read genotype file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## 
+    ## Main algorithm:
+    ##  [                                                                           ]
+    ##  [======]
+    ## Number of iterations: 16
+    ## 
+    ## Least-square error: 355839.641664
+    ## Write individual ancestry coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.Q:      OK.
+    ## Write ancestral allele frequency coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.G:   OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "*    cross-entropy estimation       *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)         1169
+    ##         -L (number of loci)                1005
+    ##         -K (number of ancestral pops)      3
+    ##         -x (genotype file)                 /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -q (individual admixture)          /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.Q
+    ##         -g (ancestral frequencies)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.G
+    ##         -i (with masked genotypes)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         - diploid
+    ## 
+    ## Cross-Entropy (all data):     0.500765
+    ## Cross-Entropy (masked data):  0.503732
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## [1] "*************************************"
+    ## [1] "* sNMF K = 4  repetition 1      *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)             1169
+    ##         -L (number of loci)                    1005
+    ##         -K (number of ancestral pops)          4
+    ##         -x (input file)                        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         -q (individual admixture file)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K4/run1/onmy_structure9.txt_r1.4.Q
+    ##         -g (ancestral frequencies file)        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K4/run1/onmy_structure9.txt_r1.4.G
+    ##         -i (number max of iterations)          200
+    ##         -a (regularization parameter)          100
+    ##         -s (seed random init)                  8976641588
+    ##         -e (tolerance error)                   1E-05
+    ##         -p (number of processes)               1
+    ##         - diploid
+    ## 
+    ## Read genotype file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## 
+    ## Main algorithm:
+    ##  [                                                                           ]
+    ##  [===============]
+    ## Number of iterations: 39
+    ## 
+    ## Least-square error: 351794.755401
+    ## Write individual ancestry coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K4/run1/onmy_structure9.txt_r1.4.Q:      OK.
+    ## Write ancestral allele frequency coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K4/run1/onmy_structure9.txt_r1.4.G:   OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "*    cross-entropy estimation       *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)         1169
+    ##         -L (number of loci)                1005
+    ##         -K (number of ancestral pops)      4
+    ##         -x (genotype file)                 /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -q (individual admixture)          /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K4/run1/onmy_structure9.txt_r1.4.Q
+    ##         -g (ancestral frequencies)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K4/run1/onmy_structure9.txt_r1.4.G
+    ##         -i (with masked genotypes)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         - diploid
+    ## 
+    ## Cross-Entropy (all data):     0.494699
+    ## Cross-Entropy (masked data):  0.498853
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## [1] "*************************************"
+    ## [1] "* sNMF K = 5  repetition 1      *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)             1169
+    ##         -L (number of loci)                    1005
+    ##         -K (number of ancestral pops)          5
+    ##         -x (input file)                        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         -q (individual admixture file)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K5/run1/onmy_structure9.txt_r1.5.Q
+    ##         -g (ancestral frequencies file)        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K5/run1/onmy_structure9.txt_r1.5.G
+    ##         -i (number max of iterations)          200
+    ##         -a (regularization parameter)          100
+    ##         -s (seed random init)                  8976641588
+    ##         -e (tolerance error)                   1E-05
+    ##         -p (number of processes)               1
+    ##         - diploid
+    ## 
+    ## Read genotype file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## 
+    ## Main algorithm:
+    ##  [                                                                           ]
+    ##  [===================]
+    ## Number of iterations: 52
+    ## 
+    ## Least-square error: 347589.716205
+    ## Write individual ancestry coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K5/run1/onmy_structure9.txt_r1.5.Q:      OK.
+    ## Write ancestral allele frequency coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K5/run1/onmy_structure9.txt_r1.5.G:   OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "*    cross-entropy estimation       *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)         1169
+    ##         -L (number of loci)                1005
+    ##         -K (number of ancestral pops)      5
+    ##         -x (genotype file)                 /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -q (individual admixture)          /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K5/run1/onmy_structure9.txt_r1.5.Q
+    ##         -g (ancestral frequencies)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K5/run1/onmy_structure9.txt_r1.5.G
+    ##         -i (with masked genotypes)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         - diploid
+    ## 
+    ## Cross-Entropy (all data):     0.488754
+    ## Cross-Entropy (masked data):  0.495475
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## [1] "*************************************"
+    ## [1] "* sNMF K = 6  repetition 1      *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)             1169
+    ##         -L (number of loci)                    1005
+    ##         -K (number of ancestral pops)          6
+    ##         -x (input file)                        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         -q (individual admixture file)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K6/run1/onmy_structure9.txt_r1.6.Q
+    ##         -g (ancestral frequencies file)        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K6/run1/onmy_structure9.txt_r1.6.G
+    ##         -i (number max of iterations)          200
+    ##         -a (regularization parameter)          100
+    ##         -s (seed random init)                  8976641588
+    ##         -e (tolerance error)                   1E-05
+    ##         -p (number of processes)               1
+    ##         - diploid
+    ## 
+    ## Read genotype file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## 
+    ## Main algorithm:
+    ##  [                                                                           ]
+    ##  [====================]
+    ## Number of iterations: 54
+    ## 
+    ## Least-square error: 343964.876925
+    ## Write individual ancestry coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K6/run1/onmy_structure9.txt_r1.6.Q:      OK.
+    ## Write ancestral allele frequency coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K6/run1/onmy_structure9.txt_r1.6.G:   OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "*    cross-entropy estimation       *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)         1169
+    ##         -L (number of loci)                1005
+    ##         -K (number of ancestral pops)      6
+    ##         -x (genotype file)                 /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -q (individual admixture)          /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K6/run1/onmy_structure9.txt_r1.6.Q
+    ##         -g (ancestral frequencies)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K6/run1/onmy_structure9.txt_r1.6.G
+    ##         -i (with masked genotypes)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         - diploid
+    ## 
+    ## Cross-Entropy (all data):     0.483283
+    ## Cross-Entropy (masked data):  0.491472
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## [1] "*************************************"
+    ## [1] "* sNMF K = 7  repetition 1      *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)             1169
+    ##         -L (number of loci)                    1005
+    ##         -K (number of ancestral pops)          7
+    ##         -x (input file)                        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         -q (individual admixture file)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K7/run1/onmy_structure9.txt_r1.7.Q
+    ##         -g (ancestral frequencies file)        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K7/run1/onmy_structure9.txt_r1.7.G
+    ##         -i (number max of iterations)          200
+    ##         -a (regularization parameter)          100
+    ##         -s (seed random init)                  386706996
+    ##         -e (tolerance error)                   1E-05
+    ##         -p (number of processes)               1
+    ##         - diploid
+    ## 
+    ## Read genotype file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## 
+    ## Main algorithm:
+    ##  [                                                                           ]
+    ##  [=================]
+    ## Number of iterations: 46
+    ## 
+    ## Least-square error: 340830.240869
+    ## Write individual ancestry coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K7/run1/onmy_structure9.txt_r1.7.Q:      OK.
+    ## Write ancestral allele frequency coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K7/run1/onmy_structure9.txt_r1.7.G:   OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "*    cross-entropy estimation       *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)         1169
+    ##         -L (number of loci)                1005
+    ##         -K (number of ancestral pops)      7
+    ##         -x (genotype file)                 /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -q (individual admixture)          /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K7/run1/onmy_structure9.txt_r1.7.Q
+    ##         -g (ancestral frequencies)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K7/run1/onmy_structure9.txt_r1.7.G
+    ##         -i (with masked genotypes)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         - diploid
+    ## 
+    ## Cross-Entropy (all data):     0.478725
+    ## Cross-Entropy (masked data):  0.487829
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## [1] "*************************************"
+    ## [1] "* sNMF K = 8  repetition 1      *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)             1169
+    ##         -L (number of loci)                    1005
+    ##         -K (number of ancestral pops)          8
+    ##         -x (input file)                        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         -q (individual admixture file)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K8/run1/onmy_structure9.txt_r1.8.Q
+    ##         -g (ancestral frequencies file)        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K8/run1/onmy_structure9.txt_r1.8.G
+    ##         -i (number max of iterations)          200
+    ##         -a (regularization parameter)          100
+    ##         -s (seed random init)                  140278313561652
+    ##         -e (tolerance error)                   1E-05
+    ##         -p (number of processes)               1
+    ##         - diploid
+    ## 
+    ## Read genotype file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## 
+    ## Main algorithm:
+    ##  [                                                                           ]
+    ##  [============]
+    ## Number of iterations: 33
+    ## 
+    ## Least-square error: 339020.565238
+    ## Write individual ancestry coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K8/run1/onmy_structure9.txt_r1.8.Q:      OK.
+    ## Write ancestral allele frequency coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K8/run1/onmy_structure9.txt_r1.8.G:   OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "*    cross-entropy estimation       *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)         1169
+    ##         -L (number of loci)                1005
+    ##         -K (number of ancestral pops)      8
+    ##         -x (genotype file)                 /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -q (individual admixture)          /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K8/run1/onmy_structure9.txt_r1.8.Q
+    ##         -g (ancestral frequencies)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K8/run1/onmy_structure9.txt_r1.8.G
+    ##         -i (with masked genotypes)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         - diploid
+    ## 
+    ## Cross-Entropy (all data):     0.475655
+    ## Cross-Entropy (masked data):  0.485672
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+
+``` r
+par(mfrow=c(1,1))
+plot(snmf2, col="blue4", cex=1.4, pch=19)
+```
+
+![](steelhead_popgen_files/figure-gfm/unnamed-chunk-46-1.png)<!-- -->
+
+**not sure what K to use yet… need to try other methods**
+
+for now i will use 3
+
+``` r
+K = 3
+snmf_3 <- LEA::snmf("~/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno", K=K, ploidy=2, entropy=T, 
+                   alpha=100, project="new")
+```
+
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## [1] 870858332
+    ## [1] "*************************************"
+    ## [1] "*          create.dataset            *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)                 1169
+    ##         -L (number of loci)                        1005
+    ##         -s (seed random init)                      870858332
+    ##         -r (percentage of masked data)             0.05
+    ##         -x (genotype file in .geno format)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -o (output file in .geno format)           /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ## 
+    ##  Write genotype file with masked data, /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "* sNMF K = 3  repetition 1      *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)             1169
+    ##         -L (number of loci)                    1005
+    ##         -K (number of ancestral pops)          3
+    ##         -x (input file)                        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         -q (individual admixture file)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.Q
+    ##         -g (ancestral frequencies file)        /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.G
+    ##         -i (number max of iterations)          200
+    ##         -a (regularization parameter)          100
+    ##         -s (seed random init)                  140278797712988
+    ##         -e (tolerance error)                   1E-05
+    ##         -p (number of processes)               1
+    ##         - diploid
+    ## 
+    ## Read genotype file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno:       OK.
+    ## 
+    ## 
+    ## Main algorithm:
+    ##  [                                                                           ]
+    ##  [=======]
+    ## Number of iterations: 19
+    ## 
+    ## Least-square error: 355956.689143
+    ## Write individual ancestry coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.Q:      OK.
+    ## Write ancestral allele frequency coefficient file /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.G:   OK.
+    ## 
+    ## [1] "*************************************"
+    ## [1] "*    cross-entropy estimation       *"
+    ## [1] "*************************************"
+    ## summary of the options:
+    ## 
+    ##         -n (number of individuals)         1169
+    ##         -L (number of loci)                1005
+    ##         -K (number of ancestral pops)      3
+    ##         -x (genotype file)                 /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.geno
+    ##         -q (individual admixture)          /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.Q
+    ##         -g (ancestral frequencies)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/K3/run1/onmy_structure9.txt_r1.3.G
+    ##         -i (with masked genotypes)         /Users/kim/Desktop/LG_Proj4/Elwha_datafiles/onmy_structure9.txt.snmf/masked/onmy_structure9.txt_I.geno
+    ##         - diploid
+    ## 
+    ## Cross-Entropy (all data):     0.500772
+    ## Cross-Entropy (masked data):  0.504168
+    ## The project is saved into :
+    ##  cture9.txt.snmfProject 
+    ## 
+    ## To load the project, use:
+    ##  project = load.snmfProject("cture9.txt.snmfProject")
+    ## 
+    ## To remove the project, use:
+    ##  remove.snmfProject("cture9.txt.snmfProject")
+
+plot ancestral populations
+
+``` r
+qmatrix = LEA::Q(snmf_3, K = K)
+
+par(mar=c(4,4,0.5,0.5))
+barplot(t(qmatrix), col=RColorBrewer::brewer.pal(9,"Paired"), 
+        border=NA, space=0, xlab="Individuals", 
+        ylab="Admixture coefficients")
+```
+
+![](steelhead_popgen_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
+
+``` r
+#Add population labels to the axis:
+#for (i in 1:length(sampling_site)){
+#  axis(1, at=median(which(sample_sites==sampling_site[i])), labels=sampling_site[i])}
+```
+
+#to do: ## snmf says 1007 loci… is there a problem? ## figure how to
+assign samling site to indiviudals ## visualize admixture on a map
