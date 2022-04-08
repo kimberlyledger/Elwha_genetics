@@ -1,0 +1,238 @@
+---
+title: "neutral_analysis"
+output: html_document
+date: '2022-03-04'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Load the library
+```{r}
+library(adegenet)
+library(pegas)
+library(tidyverse)
+library(genetics)
+library(dartR)
+library(dplyr)
+library(tidyverse)
+library(factoextra)
+library(OutFLANK)
+```
+
+#Read the table 
+ 
+```{r}
+meta <- read.csv("Elwha_Chinook_Formatted.csv")
+geno <- read.table("Chinook_Elwha_genotypes.txt")
+geno <- t(geno)
+geno[geno== 'N,N'] <- NA
+```
+
+
+#transfer the data type
+
+```{r}
+
+#rename the column name to get rid of "." and  "'"
+m <-data.frame(cbind(meta,geno))
+mf <- dplyr:::filter(m, Time != "#VALUE!") 
+colmf <- gsub("\\.", "_", colnames(mf))
+colnames(mf) = colmf
+geno <- mf[,-c(1:16)]
+meta <- mf[,c(1:16)]
+meta1 <- meta %>% mutate(TimePlace = paste(Time, "_", Location))
+loci <- colnames(geno)
+ind <- rownames(geno)
+place <- mf$Location
+dgenind <- df2genind(geno, 
+          sep=",",
+          ind.names=ind,
+          loc.names=loci, 
+          pop = place,
+          ploidy = 2)
+
+```
+
+#HW test
+
+```{r}
+hwe <- hw.test(dgenind)
+colnames(hwe)[3] = "P"
+hwe <- data.frame(hwe)
+hwe_neutral <- hwe %>% filter( df ==1 & P > 0.05)
+neutral_filter<- rownames(hwe_neutral)
+neutral_index <- match(neutral_filter, colnames(geno))
+
+hwe_adaptive <- hwe %>% filter(df==1 & P < 0.05)
+adp_filter <- rownames(hwe_adaptive)
+adp_index <- match(adp_filter, colnames(geno))
+
+genind_neutral <- dgenind[loc=neutral_index]
+genind_adp <- dgenind[loc=adp_index]
+
+```
+
+#Fst Outlier 
+
+It seems there is no Fst outlier in the SNP.array
+
+```{r}
+SNPmat <- data.frame(dgenind@tab)
+SNPmat[is.na(SNPmat)==TRUE] <- 9
+loc <- colnames(SNPmat)
+indi <- rownames(SNPmat)
+pop <- dgenind@pop
+fstinput <- MakeDiploidFSTMat(SNPmat = SNPmat, locusNames = loc, popNames = pop)
+outlier <- OutFLANK(fstinput, LeftTrimFraction = 0.01, RightTrimFraction = 0.05, NumberOfSamples = 3, Hmin = 0.1, qthreshold = 0.01)
+OutFLANKResultsPlotter(outlier, withOutliers = TRUE, NoCorr = TRUE, Hmin = 0.1, binwidth = 0.005,
+                       Zoom = FALSE, RightZoomFraction = 0.05,titletext = NULL)
+fst <- pOutlierFinderChiSqNoCorr(fstinput,Fstbar=outlier$FSTNoCorrbar,
+                                dfInferred=outlier$dfInferred,qthreshold=0.05,Hmin=0.1)
+list_outlier <- fst$OutlierFlag == T 
+```
+
+
+#PCA & DAPC
+
+```{r}
+dapcn <- dapc(genind_neutral, n.pca=20, n.da = 10,var.contrib = TRUE, pca.info=TRUE)
+dapca <- dapc(genind_adp, n.pca=20, n.da = 10,var.contrib = TRUE, pca.info=TRUE,pop = meta1$Time)
+plotn <- scatter(dapcn,xax=1,yax=2)
+plota <- scatter(dapca,xax=1,yax=2)
+gelin_neutral <- gi2gl(genind_neutral)
+gelin_adp <- gi2gl(genind_adp)
+gelin_nonfilter <- gi2gl(dgenind)
+pcan <- glPca(gelin_neutral, center = F, scale = F, nf =50)
+pcaa <- glPca(gelin_adp, center = F, scale = F, nf =50)
+pcap <- glPca(gelin_nonfilter, center = F, scale = F, nf =50)
+
+PCn <- data.frame(pcan$scores)
+PCn$Color <- meta1$Location
+PCn$Shape <- meta1$Time
+PCa <- data.frame(pcaa$scores)
+PCa$Color <- meta1$Location
+PCa$Shape <- meta1$Time
+PCp <- data.frame(pcap$scores)
+PCp$Color <- meta1$Location
+PCp$Shape <- meta1$Time
+
+PCn %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Color, shape = Shape), size = 3, alpha=0.8) + 
+  labs(color = "Location", shape = "Time")+
+  scale_color_manual(values=c("#A9AFD1", "#9D5C63","#29335C")) + 
+  theme_classic() + 
+  theme(axis.text = element_text(size = 10, face = "bold"), 
+        axis.title = element_text(size = 13, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")) 
+
+PCa %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Color, shape = Shape), size = 3, alpha=0.8) + 
+  labs(color = "Location", shape = "Time")+
+  scale_color_manual(values=c("#A9AFD1", "#9D5C63","#29335C")) + 
+  theme_classic() + 
+  theme(axis.text = element_text(size = 10, face = "bold"), 
+        axis.title = element_text(size = 13, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")) 
+
+
+scatter(pcan, xax=1, yax =2, clabel = 1, cpoint = 0.1, posi = "bottomright" )
+dev.copy(png, "dapc.png")
+dev.off()
+```
+
+#admixture analysis
+```{r}
+k <- c(2:7)
+i <- c(1:6)
+clust <- function(K,data){
+  clust<- snapclust(data, k=K, pop.ini = NULL,hybrids = F)
+  return(clust)
+}
+
+qvalue <- lapply(k, clust, data=genind_neutral)
+
+binding <- function(i){
+  clust_meta <- cbind(meta1,qvalue[[i]])
+  return(clust_meta)
+}
+qmeta <- lapply(i, binding)
+col <- 20 #the location of prob.1
+log_AIC <- list()
+log_BIC <- list()
+log_AICc <- list()
+for (a in i) {
+  log_AIC[[a]] <- AIC(qvalue[[a]])
+  log_AICc[[a]] <- AICc(qvalue[[a]])
+  log_BIC[[a]] <- BIC(qvalue[[a]])
+  
+}
+log_AIC <- unlist(log_AIC)
+log_AICc <- unlist(log_AICc)
+log_BIC <- unlist(log_BIC)
+icdata <- data.frame(K=seq(2,7,1),
+             AIC=log_AIC,
+             AICc=log_AICc,
+             BIC=log_BIC)
+
+icdata %>% ggplot(aes(x=K, y=AIC))+ geom_line(size=1.2) + geom_point(size=2) + theme_classic()
+icdata %>% ggplot(aes(x=K, y=AICc))+ geom_line(size=1.2) + geom_point(size=2) + theme_classic()
+icdata %>% ggplot(aes(x=K, y=BIC))+ geom_line(size=1.2) + geom_point(size=2) + theme_classic()
+tidyq <- function(i){
+  lastcol <- colnames(qmeta[[i-1]])[col+i-1]
+  admix_gg <- data.frame(qmeta[[i-1]]) %>% gather(key = clustname, value = "clust", proba.1:paste(lastcol)) %>% 
+  arrange(clustname, clust) %>% 
+  mutate(
+    SPP_ID3 = fct_reorder2(as.factor(Sample_ID), as.factor(Location), clust),
+    Location = fct_reorder2(as.factor(Location), clustname, clust),
+    clustname = fct_reorder2(factor(clustname, levels = c("cluster1", paste("cluster",i))), clustname, clust)) 
+  return(admix_gg)
+}
+admixgg2 <- tidyq(2)
+admixgg3 <- tidyq(3)
+admixgg4 <- tidyq(4)
+admixgg5 <- tidyq(5)
+admixgg6 <- tidyq(6)
+admixgg7 <- tidyq(7)
+adplot <- function(file,i){
+    file %>%  ggplot() + geom_col(aes(x=SPP_ID3, y=clust, fill=group),width=1) + 
+    scale_x_discrete(expand=c(0,0)) + 
+    scale_y_continuous(expand=c(0,0)) +
+    scale_fill_manual(values=c("#CDC6A5","#A69BB6","#A3869A","#A0717F","#9D5C63","#634860", "#29335C"))+
+    theme_classic(base_size = 10) +
+    theme(axis.text.x = element_text(angle = 80, hjust = 0.5, size = 7)) +
+    labs(x="", y= paste("K =", i )) +
+    facet_grid(.~Location, scales = "free_x", space = "free_x") +
+    theme(strip.background = element_blank(), 
+          strip.text = element_text(size = 11, face = "bold"),
+          panel.spacing = unit(0, "lines"),
+          panel.border = element_rect(fill = NA, color = "gray40"),
+          axis.title.y = element_text(size = 12, face = "bold"),
+          axis.text.x=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.position = "none") 
+}
+(adplot2 <- adplot(admixgg2,2))
+(adplot3 <- adplot(admixgg3,3))
+(adplot4 <- adplot(admixgg4,4))
+(adplot5 <- adplot(admixgg5,5))
+(adplot6 <- adplot(admixgg6,6))
+(adplot7 <- adplot(admixgg7,7))
+
+
+
+```
+
