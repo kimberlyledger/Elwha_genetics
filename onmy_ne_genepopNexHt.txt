@@ -1,0 +1,27 @@
+Output from NeEstimator v2.1
+Starting time: Fri Apr 08 19:08:44 2022
+Input File: "onmy_ne_genepop.txt"
+
+Number of Loci = 224
+
+
+HETEROZYGOTE-EXCESS METHOD
+
+Lowest allele frequency used:    0.0500
+Up to 17 righmost characters can be shown for population names.
+----------------------------------------------------------------------------------
+Population Number  Samp  Harmonic   #Indep.     D          Ne          CIs for Ne
+followed by :Name  Size  Mean Size  Alleles                            Parametric
+----------------------------------------------------------------------------------
+1:During_BD_02       43     21.3      193   0.05107       10.3       7.1      19.5
+2:Post_AD_17_023    411    399.4      196  -0.02140   Infinite  Infinite  Infinite
+3:Post_BD_E12_163   445    409.6      225  -0.07399   Infinite  Infinite  Infinite
+4:st_ID_51686_108    54     51.8      192  -0.05261   Infinite  Infinite  Infinite
+5:t_SBLR_52331_01    25     23.4      154   0.00739       68.2      13.0  Infinite
+6:Pre_AD_34185_22    64     61.6      197  -0.01306   Infinite     102.6  Infinite
+7:D_34261_T10_055    78     64.1      198  -0.03165   Infinite  Infinite  Infinite
+8:Pre_ID_33649_30    39     37.2      199  -0.03281   Infinite  Infinite  Infinite
+
+Ending time: Fri Apr 08 19:22:49 2022
+-------------------------------------
+

@@ -1,0 +1,26 @@
+Output from NeEstimator v2.1
+Starting time: Fri Apr 08 19:08:44 2022
+Input File: "onmy_ne_genepop.txt"
+
+Number of Loci = 224
+
+
+MOLECULAR COANCESTRY METHOD
+
+Up to 17 righmost characters can be shown for population names.
+-------------------------------------------------------------------------
+Population Number  Samp  Harmonic     f1^        Neb^         CIs for Ne
+followed by :Name  Size    Mean                               Jackknife
+-------------------------------------------------------------------------
+1:During_BD_02       43     21.5   0.07723        6.5       4.5       8.8
+2:Post_AD_17_023    411    398.2   0.25523        2.0       0.7       3.8
+3:Post_BD_E12_163   445    408.0   0.77086        0.6       0.5       0.8
+4:st_ID_51686_108    54     51.6   0.07363        6.8       3.8      10.6
+5:t_SBLR_52331_01    25     23.4   0.27436        1.8       1.2       2.6
+6:Pre_AD_34185_22    64     61.7   0.06747        7.4       4.6      10.9
+7:D_34261_T10_055    78     63.7   0.10087        5.0       3.6       6.5
+8:Pre_ID_33649_30    39     37.2   0.05872        8.5       5.5      12.2
+
+Ending time: Fri Apr 08 19:22:49 2022
+-------------------------------------
+
