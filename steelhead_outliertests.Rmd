@@ -1,0 +1,267 @@
+---
+title: "steelhead_outliertest"
+author: "Kimberly Ledger"
+date: "4/8/2022"
+output: github_document
+---
+
+### load libraries
+```{r, message=FALSE}
+library(vcfR) #this package is used to visualize and manipulate VCF files
+library(adegenet) #this package is used for analysis of genetic/genomic data 
+library(dplyr) # data manipulation
+library(tidyr) # data manipulation
+```   
+
+
+# Part 1: Prepare the data
+
+## read in the steelhead (Oncorhynchus mykiss) metadata - replace with UPDATED version 
+```{r}
+onmy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Steelhead_Formatted.csv")
+head(onmy_metadata)
+nrow(onmy_metadata)
+```
+### create column to represent both location (AD/ID/BD/SBLR) and time (pre/during/post)
+```{r}
+onmy_metadata <- onmy_metadata %>%
+  unite("Time_Location", c(Time, Location), sep= "_", remove = FALSE)
+```
+
+
+
+
+## read in the VCF file
+```{r}
+onmy_vcf <- read.vcfR("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf")
+onmy_vcf
+```
+
+
+# Part 2: use Fst to identify outliers 
+
+## to do this i will use OutFLANK 
+
+this starts with extracting the genotypes from the vcfR object 
+```{r}
+geno <- extract.gt(onmy_vcf)
+dim(geno)
+
+head(geno[,1:10])
+```
+
+## check vcf file for missing data 
+```{r}
+myMiss_loci <- apply(geno, MARGIN = 2, function(x){ sum(is.na(x)) })
+myMiss_loci <- myMiss_loci/nrow(geno)
+
+barplot(myMiss_loci, main = "Loci")
+title(ylab = "Missingness (%)")
+
+myMiss_sample <- apply(geno, MARGIN = 1, function(x){ sum(is.na(x)) })
+myMiss_sample <- myMiss_sample/ncol(geno)
+
+barplot(myMiss_sample, main = "Samples")
+title(ylab = "Missingness (%)")
+
+hist(myMiss_sample, main = "Samples with missing data")
+```
+
+## for now just keep only samples with <20% missing data 
+```{r}
+onmy_vcf@gt <- onmy_vcf@gt[, c(TRUE, myMiss_sample < 0.2)]
+onmy_vcf
+
+geno_filtered <- extract.gt(onmy_vcf)
+dim(geno_filtered)
+
+samples <- colnames(geno_filtered)
+snp <- rownames(geno_filtered)
+```
+
+**% missing data** does not change very much with sample filtering...  
+now, we have 1380 samples 
+
+
+Notice that as our genotypes look like 0/0, 0/1, and 1/1. But OutFLANK wants them to be 0, 1, or 2. The code below fixes this problem:
+```{r}
+G <- geno_filtered  #we are doing this because we will be running a lot of different things with G, and if we mess up we want to be able to go back to geno
+
+G[geno_filtered %in% c("0/0")] <- 0
+G[geno_filtered  %in% c("0/1")] <- 1
+G[geno_filtered %in% c("1/1")] <- 2
+G[is.na(G)] <- 9
+tG <- t(G)
+dim(tG)
+```
+
+now i need to match the population metadata to the genotypes  
+```{r}
+samples_df <- data.frame(samples)
+colnames(samples_df) <- "Sample_ID"
+
+samples_pop <- samples_df %>%
+  left_join(onmy_metadata, by = "Sample_ID")
+```
+
+**note**: there are a few individuals with missing metadata 
+
+Now tG should be in the input format OutFLANK needs, with SNPs as columns and individuals as rows. 
+
+Now we can calculate Fst for each SNP: locusNames= names our loci 1,2,3 etc popNames= names our populations with the “Location” or "Sampling_Site" labels
+
+## use "Time_Location" as population 
+```{r}
+library(OutFLANK)
+fst_loc <- MakeDiploidFSTMat(tG,locusNames=rownames(geno_filtered),popNames=samples_pop$Time_Location)
+
+head(fst_loc)
+```
+
+Fst and He calcuated for each locus 
+
+```{r}
+hist(fst_loc$FST, breaks = 50)
+```
+
+Once we’ve calculated Fst between the populations for each SNP individually, we want to determine whether some SNPs are statistical outliers - that is, more differentiated than we would expect. OutFLANK does this by fitting a Chi-Squared distribution to the data and looking to see if the tails of the Chi-Squared distribution have more SNPs than expected:  
+
+### Before running OutFLANK, check for loci with low sample sizes or unusual values of uncorrected Fst 
+
+```{r}
+plot(fst_loc$FST, fst_loc$FSTNoCorr, 
+     xlim=c(-0.01,0.4), ylim=c(-0.01,0.4),
+     pch=20)
+abline(0,1)
+```
+
+i believe everything looks good here... no major outliers... 
+
+### also check for that the Fst distribution looks chi-squared distributed 
+
+```{r}
+plot(fst_loc$He, fst_loc$FSTNoCorr, pch=20, col="grey")
+```
+
+no large Fst values associated with loci of low heterozygosity... i think we are good to go 
+
+```{r}
+hist(fst_loc$FSTNoCorr, breaks=seq(0,0.4, by=0.001))
+hist(fst_loc$FSTNoCorr[fst_loc$He>0.1], breaks=seq(0,0.4, by=0.001))
+```
+
+it doesn't look like much changes when i remove samples with <0.1 heterozygosity... 
+
+
+details on OutFLANK can be found here: http://rstudio-pubs-static.s3.amazonaws.com/305384_9aee1c1046394fb9bd8e449453d72847.html
+
+
+```{r}
+OF <- OutFLANK(fst_loc,LeftTrimFraction=0.05,RightTrimFraction=0.1,
+         Hmin=0.1,NumberOfSamples=9,qthreshold=0.05)
+## check paramaters... these are default except for a RightTrimFraction of 0.1
+## the RightTrimFraction determines how many of the highest Fst values are removed before estimating th shape of the fst distribution through likelihood.  when there are potentially a large number of loci affected by spatially heterogeneous selection, it can be worth trying a higher RightTrimFraction. 
+## the lowest RightTrimFraction that runs is 0.07 and there are 18 outliers
+## RightTrimFraction of 0.1 has 19 outliers 
+## RightTrimFraction of 0.15 has 18 outliers 
+## WILL GO WITH RightTrimFraction = 0.1, because it will allow me to be more conservative in what i am considering neutral loci 
+## NumberOfSamples= number of space/time populations - tried many values here and the result never changed
+
+
+OutFLANKResultsPlotter(OF,withOutliers=T,
+                       NoCorr=T,Hmin=0.1,binwidth=0.005,
+                       Zoom=F,RightZoomFraction=0.05,titletext=NULL)
+```
+
+which SNPs are statistical outliers?
+```{r}
+P1 <- pOutlierFinderChiSqNoCorr(fst_loc,Fstbar=OF$FSTNoCorrbar,
+                                dfInferred=OF$dfInferred,qthreshold=0.05,Hmin=0.1)  
+
+outliers <- P1$OutlierFlag==TRUE #which of the SNPs are outliers?
+table(outliers)
+
+outlier_table <- P1 %>%
+  filter(OutlierFlag == "TRUE")
+head(outlier_table)
+```
+
+the Fst outlier test identified **19 outlier SNPs** 
+
+Now we can make a manhattan plot! We can even plot the outliers in a different color:
+```{r}
+P1$num <- c(1:334)
+plot(P1$num,P1$FST,xlab="Position",ylab="FST",col=rgb(0,0,0,alpha=0.1))
+points(P1$num[outliers],P1$FST[outliers],col="magenta")
+```
+
+## compare Fst outliers to GTseq panel w/ putitively neutral/adaptive designation 
+
+## read in loci metadata
+```{r}
+onmy_loci_meta <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Steelhead_Locus_Key_kjl.csv")
+```
+
+## read in SNP coordinate data 
+```{r}
+onmy_snp_coord <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/SNP_Coordinates_CRITFC.csv")
+```
+
+join loci metadata and SNP coords 
+```{r}
+onmy_locus_join <- onmy_snp_coord %>%
+  left_join(onmy_loci_meta, by = "Locus")
+```
+
+join outlier info to metadata for only the loci included in the vcf
+```{r}
+onmy_snp <- onmy_locus_join %>%
+  rename(LocusName = SNP) %>%
+  right_join(P1)
+```
+
+filter for only outliers 
+```{r}
+onmy_snp_outliers <- onmy_snp %>%
+  filter(OutlierFlag == TRUE)
+onmy_snp_outliers
+```
+
+there are now 20 rows because the SNP NC_035104.1_11667915 has duplicate loci metadata.  
+
+look at non-outliers 
+```{r}
+onmy_snp_adapt_nonoutlier <- onmy_snp %>%
+  filter(OutlierFlag != TRUE) %>%
+  filter(Status == "Adaptive")
+onmy_snp_adapt_nonoutlier
+```
+
+there are 69 loci in the GTSeq panel that were indicated as "adaptive" that were not identified as Fst outliers. 
+
+
+## filter vcf data to remove Fst outliers 
+```{r}
+remove <- onmy_snp_outliers$LocusName
+geno_nonoutlier <- geno_filtered[!rownames(geno_filtered) %in% remove, ]
+```
+
+## transpose nonoutlier genotypes and combine with sample metadata 
+```{r}
+tG_nonout <- t(geno_nonoutlier)
+tG_nonout <- as.data.frame(tG_nonout)
+tG_nonout$Sample_ID <- rownames(tG_nonout)
+
+onmy_n_df <- tG_nonout %>%
+  left_join(onmy_metadata, by = "Sample_ID")
+```
+
+## output joined non-outlier genotypes with metadata for further analyses using other scripts 
+```{r}
+#write.csv(onmy_n_df, "outputs/my_nonoutlierloci.csv")
+```
+
+
+
+
+
