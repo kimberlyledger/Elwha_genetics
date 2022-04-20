@@ -1,0 +1,175 @@
+---
+title: "Elwha_EnvironmenalVariables"
+author: "Kimberly Ledger"
+date: "4/19/2022"
+output: github_document
+---
+
+libraries
+```{r, message= FALSE}
+library(tidyverse)
+library(ggplot2)
+library(maps)
+library(mapdata)
+library(ggrepel)
+library(sf)
+library(rgdal)
+library(raster)
+library(terra)
+```
+
+
+
+
+read in steelhead metadata that has river km and gps locations of sampling sites 
+
+**I changed Time == During individuals to Time == Pre in Elwha_Steelhead_Formatted_kjl.csv** 
+```{r}
+onmy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Steelhead_Formatted_kjl.csv")
+head(onmy_metadata)
+```
+
+create table of sampling sites 
+```{r}
+sites <- onmy_metadata %>%
+  distinct(Lat, Long, rkm, Sampling_Site) %>%
+  arrange(rkm)
+sites
+```
+
+
+create NW washington base map
+```{r}
+state <- map_data("state")
+
+washington <- subset(state, region=="washington")
+counties <- map_data("county")
+washington_county <- subset(counties, region=="washington")
+clallam_co <- subset(washington_county, subregion=="clallam")
+jefferson_co <- subset(washington_county, subregion=="jefferson")
+
+map <- ggplot(data=washington, mapping=aes(x=long, y=lat, group=group)) + 
+  coord_fixed(1.3) + 
+  geom_polygon(color="black", fill=NA) + 
+  geom_polygon(data=washington_county, fill=NA, color="gray80") + 
+  geom_polygon(color="black", fill=NA) + 
+  geom_polygon(data=clallam_co, fill=NA, color="red") + 
+  geom_polygon(color="black", fill=NA) + 
+  geom_polygon(data=jefferson_co, fill=NA, color="red") + 
+  geom_polygon(color="black", fill=NA) + 
+  xlim(-125, -122)+
+  ylim(47,48.5) + 
+  ylab("Latitude") +
+  xlab("Longitude") +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(),
+        axis.title.y=element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
+  theme_void()
+
+#map
+```
+
+plot map with sites
+```{r}
+site_map <- map + 
+  geom_point(data = sites, aes(x = Long, y = Lat, group = Sampling_Site)) +
+  geom_text_repel(data = sites, aes(x = Long, y = Lat, group = Sampling_Site, 
+                                    label = Sampling_Site), hjust=1, vjust=0.5)
+
+site_map
+```
+
+
+plot just the sampling locations 
+```{r}
+site_plot <- ggplot(sites) + 
+  geom_point(data = sites, aes(x = Long, y = Lat, group = Sampling_Site)) +
+  geom_text_repel(data = sites, aes(x = Long, y = Lat, group = Sampling_Site, 
+                                    label = Sampling_Site), hjust=1, vjust=0.5)
+site_plot
+```
+
+lat/long plot looks quite funny... reproject? 
+
+
+reproject site locations to match terrainworks data 
+```{r}
+all_sites <- sites[-41,]
+coordinates(all_sites) <- c('Long', 'Lat')
+all_sites@proj4string <- CRS('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')
+sites_utm <- spTransform(all_sites, CRS('+proj=utm +zone=11 +datum=NAD83 +units=m +no_defs')) 
+plot(sites_utm)
+``` 
+
+
+read in TerrainWorks
+```{r}
+#tw <- st_read("~/Desktop/LG_Proj4/TerrainWorks_Dung_Elwha_Corrected/Terrainworks_Dung_Elwha.shp")
+tw <- readOGR("~/Desktop/LG_Proj4/TerrainWorks_Dung_Elwha_Corrected/Terrainworks_Dung_Elwha.shp")
+tw
+```
+
+
+check projection
+```{r}
+#tw$geometry
+tw@proj4string
+```
+
+
+```{r}
+map <- ggplot() + 
+  geom_polygon(data = tw, aes(x = long, y = lat, group = group), colour = "black", fill = NA)
+#map
+```
+
+
+```{r}
+plot(tw)
+points(sites_utm, col = "red")
+```
+
+
+try to rasterize stream power from Terrain works
+```{r}
+emptyraster <- rast(xmin = -4067, xmax = 30000, ymin = 5299449, ymax = 5353874, resolution = 30)
+
+#strmpow <- rasterize(tw, emptyraster, field = "StrmPow", fun = mean, background = NA)
+```
+
+
+read in NorWeST data 
+```{r}
+nw_lines <- vect('~/Desktop/LG_Proj4/Elwha_environmentaldata/NorWeST_PredictedStreamTempPoints_WACoast_MWMT/NorWeST_PredictedStreamTempPoints_WACoast_MWMT.shp')
+
+nw_lines
+nw_lines@ptr[["names"]]
+  
+#for norwest, need list of the columns wanted
+nw_list <- list('ELEV',
+                'CANOPY',
+                'SLOPE',
+                'PRECIP',
+                'CUMDRAINAG',
+                'Flow',
+                'S1_93_11')
+```
+
+
+```{r}
+nw_lines_buffer <- buffer(nw_lines, 1000)
+
+#rasterize the shapefile, reproject, and then extract
+#norwest_sites <- lapply(nw_list, function(i){
+#   tmp <- rasterize(nw_lines_buffer, XXXX, field=paste(i), background = NA)
+#   #tmp <- project(tmp, "+proj=longlat +datum=WGS84 +no_defs")
+#   tmp[tmp<(-20)] <- NA #remove missing data
+#   terra::extract(tmp, sites_utm, xy = TRUE, method = 'simple', touches = TRUE, na.rm=TRUE)
+# })
+ 
+ #combine all the individual dataframes together
+#norwest_df <- do.call("cbind", norwest_sites)
+```
+
+
+
+
