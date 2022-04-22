@@ -1,0 +1,102 @@
+---
+title: "Elwha_EnvironmentalCorrelations"
+author: "Kimberly Ledger"
+date: "4/20/2022"
+output: html_document
+---
+
+this code tests for correlation among environmental variables 
+
+libraries 
+```{r}
+library(tidyverse)
+library(caret)
+library(corrplot)
+library(psych)
+```
+
+read in environmental data 
+```{r}
+full_env <- read.csv('~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/environ_extract_22April2022.csv')
+
+#package only wants the matrix of values, so drop first 5 columns (but save stream names, useful for later)
+site1 <- full_env$sites_renamed
+site2 <- full_env$Sampling_Site
+long <- full_env$Long
+lat <- full_env$Lat
+main <- full_env$main
+rkm <- full_env$rkm
+
+#remove and rename columns 
+full_env <- full_env %>%
+  dplyr::select(Lat, Long, rkm, ELEV, CANOPY, SLOPE, PRECIP, CUMDRAINAG, StreamTemp_93_11, StreamTemp_02_11, 
+         FlowVel, StrmPow, BFQ, ELEV_M, WIDTH_M, DEPTH_M) %>%
+  #rename(Stream_Temp_93_11 = S1_93_11,
+  #       Stream_Temp_02_11 = S2_02_11) %>%
+  mutate(AREA_M = WIDTH_M * DEPTH_M)
+```
+
+make correlation plot 
+```{r}
+#remove flow
+#full_env$Flow_Aug <- NULL
+
+#main correlation plot, then save it
+cor_full <- corr.test(full_env, method = "spearman", adjust = "none")
+cor_full$r[cor_full$p > 0.05] <- 0 #this puts blanks in for not significant correlations
+
+png('~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/full_corr1.png',   
+    width     = 3.25,
+    height    = 3.25,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+cor_init_plot <- corrplot(cor_full$r, order = "FPC", method = "number", type = "lower", tl.cex = 0.7, tl.col = rgb(0, 0, 0))
+dev.off()
+```
+
+stepwise removal
+```{r}
+#find attributes that are highly corrected
+highlyCorrelated <- findCorrelation(cor_full$r, cutoff=0.80, exact = TRUE)
+#ID names of highly correlated
+highlyCorCol <- colnames(full_env)[highlyCorrelated]
+#remove highly correlated variables
+env_cl <- full_env[, -which(colnames(full_env) %in% highlyCorCol)]
+```
+
+
+used full correlation plot and stepwise removal to inform selection of the following environmental variables
+```{r}
+#my_env <- full_env %>%
+#  dplyr::select(Stream_Temp_02_11, CANOPY, SLOPE, CUMDRAINAG, StrmPow, STRM_ORDER, AREA_M)
+
+#OR
+my_env <- full_env %>%
+  dplyr::select(StreamTemp_02_11, CANOPY, SLOPE, CUMDRAINAG, FlowVel, BFQ)
+```
+
+
+retest correlation and save matrix + plot
+```{r}
+my_cor <- corr.test(my_env, method = "spearman")
+
+png('~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/reduced_corr1.png',   
+    width     = 3.25,
+    height    = 3.25,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+corrplot(my_cor$r, order = "FPC", method = "number", type = "lower", tl.cex = 0.7, tl.col = rgb(0, 0, 0))
+dev.off()
+```
+
+
+```{r}
+write.csv(my_env, file = '~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/env_final_matrix_22April2022.csv', row.names = FALSE)
+
+#if wanting a df with the stream names included with the environmental variables
+env_final <- cbind(site1, site2, my_env, long, lat, rkm, main)
+write.csv(env_final, file = '~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/env_final_pops_22April2022.csv', row.names = FALSE)
+```
+
