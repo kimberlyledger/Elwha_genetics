@@ -101,7 +101,7 @@ write.table(steelhead_location_hwt, file = "steelhead_location_hwt.txt", sep = "
 
 ##Transform to genpop object and calculate allele frequencies
 ```{r}
-#Assigne population by "Time" + "Location"
+#Assign population by "Time" + "Location"
 setPop(steelhead_adaptive.genind) <- ~Time/Location
 steelhead_adaptive.genpop <- genind2genpop(steelhead_adaptive.genind)
 steelhead_af <- makefreq(steelhead_adaptive.genpop, missing = NA)
@@ -121,6 +121,7 @@ steelhead_adaptive.PCA$Shape <- steelhead_pop$Time
 steelhead_adaptive.PCA$Shape <- unlist(steelhead_adaptive.PCA$Shape)
 steelhead_adaptive.PCA %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Color, shape = Shape), size = 3, alpha=0.5) + 
   labs(color = "Location", shape = "Time")+
+  scale_color_manual(values=c("#A9AFD1", "#9D5C63","#29335C", "orange")) + 
   theme_classic() + 
   theme(axis.text = element_text(size = 10, face = "bold"), 
         axis.title = element_text(size = 13, face = "bold"), 
@@ -133,25 +134,38 @@ steelhead_adaptive.PCA %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Co
         plot.title = element_text(size = 18, face = "bold"))
 ```
 
-##Plot allele frequency heatmaps (*check summer-run/winter-run alleles and modify)
+##Plot allele frequency heatmaps of all adaptive loci *update steelhead.heatmap_005 with the updated dataset
 ```{r}
 library(RColorBrewer)
 library(gplots)
-#Change row order as following: Pre_AD, Pre_ID, Pre_BD, During_BD, Post_AD, Post_ID, Post_BD, Post_SBLR
-steelhead_af_ordered <- steelhead_af[c(2, 7, 1, 6, 3, 4, 5, 8),]
+
+steelhead_adaptive$SnpPos <- gsub("\\.", "_", steelhead_adaptive$SnpPos)
+steelhead_afSNP <- steelhead_af
+steelhead_afSNP <- steelhead_afSNP[,order(colnames(steelhead_afSNP))]
+
+#Change loci names from SnpPos to SnpName (="SNPPIT or Alias")
+for (i in 1:ncol(steelhead_afSNP)){
+  colnames(steelhead_afSNP)[i] <- as.character(steelhead_adaptive[(which(steelhead_adaptive$SnpPos == substr(colnames(steelhead_afSNP)[i], 1, nchar(colnames(steelhead_afSNP)[i])-2))),3]) #3rd column of "steelhead_adaptive" includes SnpName
+}
+
+#Change row order as following: Pre_AD, Post_AD, Pre_ID, Post_ID, Pre_BD, During_BD, Post_BD, Post_SBLR
+#steelhead_af_ordered <- steelhead_afSNP[c(2, 7, 1, 6, 3, 4, 5, 8),]
+steelhead_af_ordered <- steelhead_afSNP[c("Pre_AD", "Post_AD", "Pre_ID", "Post_ID", "Pre_BD", "During_BD", "Post_BD", "Post_SBLR"),]
 write.table(steelhead_af_ordered, "steelhead_af.txt", sep = "\t")
-steelhead_af_pruned <- read.delim("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/steelhead_af_pruned.txt", row.names=1) #Reread manually pruned table to have major allele frequency only for each locus 
+
+steelhead_af_pruned <- read.delim("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/Elwha_genetics/steelhead_af_pruned.txt", row.names = 1) #Reread manually pruned table to have major allele frequency only for each locus 
 steelhead_af_pruned <- as.matrix(steelhead_af_pruned)
-steelhead_af_pruned <- steelhead_af_pruned[,order(colnames(steelhead_af_pruned))]
+
 heatmap_color <- colorRampPalette(brewer.pal(10,"RdYlBu"))
-steelhead.heatmap_all <- heatmap.2(steelhead_af_pruned, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", density.info = "none", xlab = "Locus", labCol = "", margins = c(2.5,10))
+steelhead.heatmap_all <- heatmap.2(steelhead_af_pruned, main = "Heatmap of all Adpative loci", col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", density.info = "none", xlab = "Locus", labCol = "", margins = c(2.5,10))
 
-steelhead.heatmap_all_dendro <- heatmap.2(steelhead_af_pruned, col=heatmap_color, trace = "none", density.info = "none", xlab = "Locus", labCol = "", margins = c(2.5,10)) #Heatmap with dendrogram option
+steelhead.heatmap_all_dendro <- heatmap.2(steelhead_af_pruned, main = "Heatmap of all Adpative loci", col=heatmap_color, trace = "none", density.info = "none", xlab = "Locus", labCol = "", margins = c(2.5,10)) #Heatmap with dendrogram option
 
-steelhead_af_005 <- read.delim("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/steelhead_af_pruned_005.txt", row.names=1) #Manually filtered loci to include higher 5% of them in terms of absolute value of allele frequency change between PreDam and PostDam for any of AD, ID, BD
+steelhead_af_005 <- read.delim("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/Elwha_genetics/steelhead_af_005.txt", row.names=1) #Manually filtered loci to include higher 5% of them in terms of absolute value of allele frequency change between PreDam and PostDam for any of AD, ID, BD
 steelhead_af_005 <- as.matrix(steelhead_af_005)
-steelhead.heatmap_005 <- heatmap.2(steelhead_af_005, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", density.info = "none", srtCol = 45, margins = c(10,10))
-steelhead.heatmap_005_dendro <- heatmap.2(steelhead_af_005, col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
+
+steelhead.heatmap_005 <- heatmap.2(steelhead_af_005, main = "Heatmap of highly affected loci", col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", density.info = "none", srtCol = 45, margins = c(10,10))
+steelhead.heatmap_005_dendro <- heatmap.2(steelhead_af_005, main = "Heatmap of highly affected loci", col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
 ```
 
 ##Calculate (observed) genotype frequencies for each pop (Time/Location) and save them to manually re-arrange them
@@ -214,10 +228,10 @@ steelhead_gf_PostSBLR[] <- sapply(steelhead_gf_PostSBLR, function(x){x/sum(x)})
 steelhead_gf_PostSBLR$Time_Location <- "Post_SBLR"
 write.table(steelhead_gf_PostSBLR, file = "steelhead_gf_PostSBLR.txt", sep = "\t")
 
-#After this, in Excel, manually separate loci according to positions on Greb1 (Premature/Mature and Omy5 (Ancestral/Recombined) and combine files of same Location (e.g. steelhead_gf_BD; combined PreBD + DuringBD + PostBD), because "GenotypeFreq" function removes Sample ID. But you can just make combined files in advacne here too, as they retain Pop info.
+#After this, in Excel, manually separate loci according to positions on Greb1 (Premature/Mature and Omy5 (Ancestral/Recombined) and combine files of same Location (e.g. steelhead_gf_BD; combined PreBD + DuringBD + PostBD), because "GenotypeFreq" function removes Sample ID. But you can just make combined files in advance here too, as they retain Pop info.
 ```
 
-##Plot allele frequency heatmaps (*check summer-run/winter-run alleles and modify)
+##Plot allele frequency heatmaps of GREB1L loci (*check summer-run/winter-run alleles and modify)
 ```{r}
 #Read files of GREB1L loci genotype frequencies for each run timing (summer-run, heterozygotes, winter-run)
 steelhead_gf_summerrun <- read_excel("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/Elwha_genetics/steelhead_gf_summerrun.xlsx")
@@ -229,9 +243,9 @@ rownames(steelhead_gf_summerrun) <- Popinfo
 
 heatmap_color <- colorRampPalette(brewer.pal(10,"RdYlBu"))
 
-steelhead.heatmap_summerrun <- heatmap.2(steelhead_gf_summerrun, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", srtCol = 45, density.info = "none", margins = c(10,10))
+steelhead.heatmap_summerrun <- heatmap.2(steelhead_gf_summerrun, main = "Heatmap of Summer-run", col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", srtCol = 45, density.info = "none", margins = c(10,10))
 
-steelhead.heatmap_summerrun_dendro <- heatmap.2(steelhead_gf_summerrun, col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
+steelhead.heatmap_summerrun_dendro <- heatmap.2(steelhead_gf_summerrun, main = "Heatmap of Summer-run", col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
 
 
 steelhead_gf_heterozygote <- read_excel("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/Elwha_genetics/steelhead_gf_heterozygote.xlsx")
@@ -240,9 +254,9 @@ steelhead_gf_heterozygote <- steelhead_gf_heterozygote[,-1]
 steelhead_gf_heterozygote <- apply(steelhead_gf_heterozygote, 2, as.numeric)
 rownames(steelhead_gf_heterozygote) <- Popinfo
 
-steelhead.heatmap_heterozygote <- heatmap.2(steelhead_gf_heterozygote, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", srtCol = 45, density.info = "none", margins = c(10,10))
+steelhead.heatmap_heterozygote <- heatmap.2(steelhead_gf_heterozygote, main = "Heatmap of Heterozygote", col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", srtCol = 45, density.info = "none", margins = c(10,10))
 
-steelhead.heatmap_heterozygote_dendro <- heatmap.2(steelhead_gf_heterozygote, col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
+steelhead.heatmap_heterozygote_dendro <- heatmap.2(steelhead_gf_heterozygote, main = "Heatmap of Heterozygote", col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
 
 
 steelhead_gf_winterrun <- read_excel("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/Elwha_genetics/steelhead_gf_winterrun.xlsx")
@@ -251,12 +265,12 @@ steelhead_gf_winterrun <- steelhead_gf_winterrun[,-1]
 steelhead_gf_winterrun <- apply(steelhead_gf_winterrun, 2, as.numeric)
 rownames(steelhead_gf_winterrun) <- Popinfo
 
-steelhead.heatmap_winterrun <- heatmap.2(steelhead_gf_winterrun, col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", srtCol = 45, density.info = "none", margins = c(10,10))
+steelhead.heatmap_winterrun <- heatmap.2(steelhead_gf_winterrun, main = "Heatmap of Winter-run", col=heatmap_color, Rowv = FALSE, Colv = FALSE, dendrogram = "none", trace = "none", srtCol = 45, density.info = "none", margins = c(10,10))
 
-steelhead.heatmap_winterrun_dendro <- heatmap.2(steelhead_gf_winterrun, col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
+steelhead.heatmap_winterrun_dendro <- heatmap.2(steelhead_gf_winterrun, main = "Heatmap of Winter-run", col=heatmap_color, trace = "none", density.info = "none", srtCol = 45, margins = c(10,10)) #Heatmap with dendrogram option
 ```
 
-##Prepare data for NeEstimator
+##Prepare data for NeEstimator (Neutral loci + 1 adaptive loci from Omy5 and Omy28)
 ```{r}
 #Derived and developed from Kim's code for neutral loci analyses
 onmy_metadata <- read_csv("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/Elwha_Steelhead_Formatted.csv")
@@ -480,5 +494,25 @@ if(n.loci > 1){
 utils::write.table(data_gpop2,file = "onmy_ne_genepop.txt", quote=FALSE,
                      row.names=FALSE, col.names=FALSE)
 
-# The output file will be input to NeEstimator
+# The output file will be input to NeEstimator (sample names should be shortened not to include numbers similar to genotype frequencies)
 ```
+
+##Calculate DPS based on adaptive loci and change the DPS matrix to column/long format
+```{r}
+steelhead_adaptive_dps <- 1 - propShared(steelhead_adaptive.genind)
+require(reshape2)
+temp_m <- as.matrix(steelhead_adaptive_dps)
+temp_m[upper.tri(temp_m, diag=TRUE)] <- NA
+m <- melt(temp_m)
+rm(temp_m)
+IndData <- na.omit(m)
+IndData <- IndData[, c(2,1,3)] # Change the column order
+colnames(IndData) <- c('Ind1', 'Ind2', 'DPS') # Change column names to be mnemonic 
+for (i in 1:nrow(IndData)){
+  IndData$Sampling_Site[i] <- steelhead.metadata %>% filter(Sample_ID == IndData$Ind1[i]) %>% select(Location)
+}
+temp_IndData <- as.matrix(IndData)
+write.csv(temp_IndData, file = paste0("steelhead_dps.csv"), row.names = FALSE)
+rm(temp_IndData)  
+```
+
