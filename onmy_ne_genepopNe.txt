@@ -1,16 +1,16 @@
 Output from NeEstimator v2.1
-Starting time: Fri Apr 08 19:08:44 2022
+Starting time: Mon May 02 02:54:01 2022
 Input File: "onmy_ne_genepop.txt"
 
-Number of Loci = 224
+Number of Loci = 226
 
-Non-polymorphic loci:     4,     6,    14,    19,    51,    57,    67,    72,
-          114,   127,   139,   145,   157,   158,   169,   209
-Total non-polymorphic = 16
+Non-polymorphic loci:     4,     6,    14,    50,    65,    66,    71,   113,
+          126,   138,   144,   148,   157,   158,   169,   174,   199,   211
+Total non-polymorphic = 18
 
 LD mating model: Random
 
-Population     1 [During_BD_02]  (Number of Individuals = 43)
+Population     1 [During_BD_50861_002]  (Number of Individuals = 43)
 ****************
 --------------------------------------------------------------------------
 Lowest Allele Frequency Used     0.050       0.020       0.010         0+
@@ -53,11 +53,11 @@ Estimated Neb^ =                                                       6.5
 * Jackknife on Loci                                                    4.5
                                                                        8.8
 **************************************************************************
-Non-polymorphic loci:    14,    19,    57,   145
-Total non-polymorphic = 4
+Non-polymorphic loci:    14,    65,   144,   148,   174,   199
+Total non-polymorphic = 6
 
 
-Population     2 [Post_AD_17_023]  (Number of Individuals = 411)
+Population     2 [Post_AD_51761_17_023]  (Number of Individuals = 411)
 ****************
 --------------------------------------------------------------------------
 Lowest Allele Frequency Used     0.050       0.020       0.010         0+
@@ -101,309 +101,11 @@ Estimated Neb^ =                                                       2.0
                                                                        3.8
 **************************************************************************
 
-Time: Fri Apr 08 19:15:00 2022
+Time: Mon May 02 03:00:41 2022
 
-Non-polymorphic loci:    57,   169
-Total non-polymorphic = 2
 
+Fatal error: At locus 1, Sample 376 (population 3 [Post_BD_51029_E12_163]) has non-digit character for a genotype.
 
-Population     3 [Post_BD_E12_163]  (Number of Individuals = 445)
-****************
---------------------------------------------------------------------------
-Lowest Allele Frequency Used     0.050       0.020       0.010         0+
---------------------------------------------------------------------------
-
-LINKAGE DISEQUILIBRIUM METHOD
-
-Harmonic Mean Sample Size =      387.0       387.6       386.5       385.6
-Independent Comparisons =      21219       24964       26087       28425
-OverAll r^2 =                 0.003517    0.003467    0.003453    0.020499
-Expected r^2 Sample =         0.002557    0.002555    0.002561    0.002607
-Estimated Ne^ =                  345.3       363.4       371.7        16.3
-
-95% CIs for Ne^
-* Parametric                     322.4       340.3       348.1        15.9
-                                 371.0       389.2       398.0        16.6
-
-* JackKnife on Samples           287.5       300.7       308.0         1.0
-                                 424.0       449.9       459.5        68.0
-
-
-HETEROZYGOTE EXCESS METHOD
-
-Harmonic Mean Sample Size =      409.6       409.8       409.0       408.0 
-Independent Alleles =            225         244         249         263  
-Weighted Mean D =             -0.07399    -0.07393    -0.07221    -0.06066
-Estimated Neb^  =             Infinite    Infinite    Infinite    Infinite
-
-95% CIs for Nb:
-* Parametric                  Infinite    Infinite    Infinite    Infinite
-                              Infinite    Infinite    Infinite    Infinite
-
-MOLECULAR COANCESTRY METHOD
-
-Harmonic Mean Sample Size =                                          408.0
-OverAll f1^    =                                                   0.77086
-Estimated Neb^ =                                                       0.6
-
-95% CIs for Ne^
-* Jackknife on Loci                                                    0.5
-                                                                       0.8
-**************************************************************************
-
-Time: Fri Apr 08 19:22:10 2022
-
-Non-polymorphic loci:    14,    19,    57,   169,   209
-Total non-polymorphic = 5
-
-
-Population     4 [Post_ID_51686_108]  (Number of Individuals = 54)
-****************
---------------------------------------------------------------------------
-Lowest Allele Frequency Used     0.050       0.020       0.010         0+
---------------------------------------------------------------------------
-
-LINKAGE DISEQUILIBRIUM METHOD
-
-Harmonic Mean Sample Size =       50.4        50.3        50.2        50.2
-Independent Comparisons =      18324       21899       23174       23820
-OverAll r^2 =                 0.021434    0.021486    0.021531    0.021607
-Expected r^2 Sample =         0.020949    0.020996    0.021025    0.021022
-Estimated Ne^ =                  685.0       677.3       656.2       567.5
-
-95% CIs for Ne^
-* Parametric                     356.0       368.8       366.7       338.5
-                                6298.6      3551.7      2784.2      1645.0
-
-* JackKnife on Samples           215.8       209.8       209.5       197.4
-                              Infinite    Infinite    Infinite    Infinite
-
-
-HETEROZYGOTE EXCESS METHOD
-
-Harmonic Mean Sample Size =       51.8        51.7        51.6        51.6 
-Independent Alleles =            192         210         216         219  
-Weighted Mean D =             -0.05261    -0.05398    -0.05701    -0.05623
-Estimated Neb^  =             Infinite    Infinite    Infinite    Infinite
-
-95% CIs for Nb:
-* Parametric                  Infinite    Infinite    Infinite    Infinite
-                              Infinite    Infinite    Infinite    Infinite
-
-MOLECULAR COANCESTRY METHOD
-
-Harmonic Mean Sample Size =                                           51.6
-OverAll f1^    =                                                   0.07363
-Estimated Neb^ =                                                       6.8
-
-95% CIs for Ne^
-* Jackknife on Loci                                                    3.8
-                                                                      10.6
-**************************************************************************
-
-Time: Fri Apr 08 19:22:19 2022
-
-Non-polymorphic loci:     4,     6,     7,     8,    13,    14,    16,    19,
-           25,    26,    27,    28,    45,    51,    57,    67,    70,    71,
-           88,    94,    96,   104,   106,   109,   111,   112,   113,   127,
-          128,   129,   133,   139,   145,   149,   150,   153,   157,   158,
-          162,   163,   169,   180,   184,   194,   196,   209,   211,   214
-Total non-polymorphic = 48
-
-
-Population     5 [Post_SBLR_52331_01]  (Number of Individuals = 25)
-****************
---------------------------------------------------------------------------
-Lowest Allele Frequency Used     0.050       0.020       0.010         0+
---------------------------------------------------------------------------
-
-LINKAGE DISEQUILIBRIUM METHOD
-
-Harmonic Mean Sample Size =       22.6        22.6        22.6        22.6
-Independent Comparisons =      11691       14892       14892       14892
-OverAll r^2 =                 0.056442    0.056022    0.056022    0.056022
-Expected r^2 Sample =         0.050425    0.050360    0.050360    0.050360
-Estimated Ne^ =                   49.4        52.7        52.7        52.7
-
-95% CIs for Ne^
-* Parametric                      39.3        42.5        42.5        42.5
-                                  65.3        68.1        68.1        68.1
-
-* JackKnife on Samples            23.7        25.3        25.3        25.3
-                                 388.0       421.6       421.6       421.6
-
-
-HETEROZYGOTE EXCESS METHOD
-
-Harmonic Mean Sample Size =       23.4        23.4        23.4        23.4 
-Independent Alleles =            154         176         176         176  
-Weighted Mean D =              0.00739     0.00698     0.00698     0.00698
-Estimated Neb^  =                 68.2        72.1        72.1        72.1
-
-95% CIs for Nb:
-* Parametric                      13.0        14.6        14.6        14.6
-                              Infinite    Infinite    Infinite    Infinite
-
-MOLECULAR COANCESTRY METHOD
-
-Harmonic Mean Sample Size =                                           23.4
-OverAll f1^    =                                                   0.27436
-Estimated Neb^ =                                                       1.8
-
-95% CIs for Ne^
-* Jackknife on Loci                                                    1.2
-                                                                       2.6
-**************************************************************************
-Non-polymorphic loci:     4,    14,    19,    51,    57,   145,   149,   158,
-          169
-Total non-polymorphic = 9
-
-
-Population     6 [Pre_AD_34185_22]  (Number of Individuals = 64)
-****************
---------------------------------------------------------------------------
-Lowest Allele Frequency Used     0.050       0.020       0.010         0+
---------------------------------------------------------------------------
-
-LINKAGE DISEQUILIBRIUM METHOD
-
-Harmonic Mean Sample Size =       60.1        60.3        60.3        60.3
-Independent Comparisons =      19266       21935       22563       22987
-OverAll r^2 =                 0.018549    0.018497    0.018552    0.018525
-Expected r^2 Sample =         0.017395    0.017365    0.017362    0.017364
-Estimated Ne^ =                  286.7       292.3       278.1       285.2
-
-95% CIs for Ne^
-* Parametric                     215.7       222.6       214.8       219.6
-                                 420.3       419.3       389.1       401.3
-
-* JackKnife on Samples           161.3       164.5       161.7       162.9
-                                1013.7      1035.9       833.7       931.8
-
-
-HETEROZYGOTE EXCESS METHOD
-
-Harmonic Mean Sample Size =       61.6        61.7        61.7        61.7 
-Independent Alleles =            197         210         213         215  
-Weighted Mean D =             -0.01306    -0.01416    -0.01385    -0.01372
-Estimated Neb^  =             Infinite    Infinite    Infinite    Infinite
-
-95% CIs for Nb:
-* Parametric                     102.6       146.2       143.3       144.6
-                              Infinite    Infinite    Infinite    Infinite
-
-MOLECULAR COANCESTRY METHOD
-
-Harmonic Mean Sample Size =                                           61.7
-OverAll f1^    =                                                   0.06747
-Estimated Neb^ =                                                       7.4
-
-95% CIs for Ne^
-* Jackknife on Loci                                                    4.6
-                                                                      10.9
-**************************************************************************
-
-Time: Fri Apr 08 19:22:32 2022
-
-Non-polymorphic loci:     4,    14,    19,    51,    57,    67,   145,   169
-Total non-polymorphic = 8
-
-
-Population     7 [Pre_BD_34261_T10_055]  (Number of Individuals = 78)
-****************
---------------------------------------------------------------------------
-Lowest Allele Frequency Used     0.050       0.020       0.010         0+
---------------------------------------------------------------------------
-
-LINKAGE DISEQUILIBRIUM METHOD
-
-Harmonic Mean Sample Size =       57.4        57.1        56.9        56.8
-Independent Comparisons =      19312       22489       22768       23198
-OverAll r^2 =                 0.018339    0.018450    0.018506    0.018532
-Expected r^2 Sample =         0.017360    0.017414    0.017457    0.017475
-Estimated Ne^ =                  338.2       319.5       315.7       313.2
-
-95% CIs for Ne^
-* Parametric                     244.7       239.1       237.1       236.2
-                                 536.3       474.0       464.9       458.0
-
-* JackKnife on Samples           140.4       134.4       133.5       132.4
-                              Infinite    Infinite    Infinite    Infinite
-
-
-HETEROZYGOTE EXCESS METHOD
-
-Harmonic Mean Sample Size =       64.1        63.9        63.8        63.7 
-Independent Alleles =            198         213         214         216  
-Weighted Mean D =             -0.03165    -0.03316    -0.03303    -0.03274
-Estimated Neb^  =             Infinite    Infinite    Infinite    Infinite
-
-95% CIs for Nb:
-* Parametric                  Infinite    Infinite    Infinite    Infinite
-                              Infinite    Infinite    Infinite    Infinite
-
-MOLECULAR COANCESTRY METHOD
-
-Harmonic Mean Sample Size =                                           63.7
-OverAll f1^    =                                                   0.10087
-Estimated Neb^ =                                                       5.0
-
-95% CIs for Ne^
-* Jackknife on Loci                                                    3.6
-                                                                       6.5
-**************************************************************************
-
-Time: Fri Apr 08 19:22:45 2022
-
-Non-polymorphic loci:     4,    14,    19,    25,    28,    51,    57,   145,
-          158,   169,   209
-Total non-polymorphic = 11
-
-
-Population     8 [Pre_ID_33649_30]  (Number of Individuals = 39)
-****************
---------------------------------------------------------------------------
-Lowest Allele Frequency Used     0.050       0.020       0.010         0+
---------------------------------------------------------------------------
-
-LINKAGE DISEQUILIBRIUM METHOD
-
-Harmonic Mean Sample Size =       35.8        35.7        35.6        35.6
-Independent Comparisons =      19458       21695       22521       22521
-OverAll r^2 =                 0.030660    0.030657    0.030683    0.030683
-Expected r^2 Sample =         0.029660    0.029734    0.029756    0.029756
-Estimated Ne^ =                  331.3       358.8       357.7       357.7
-
-95% CIs for Ne^
-* Parametric                     203.9       218.8       219.9       219.9
-                                 831.9       937.2       904.7       904.7
-
-* JackKnife on Samples           119.5       142.7       144.1       144.1
-                              Infinite    Infinite    Infinite    Infinite
-
-
-HETEROZYGOTE EXCESS METHOD
-
-Harmonic Mean Sample Size =       37.2        37.2        37.2        37.2 
-Independent Alleles =            199         209         213         213  
-Weighted Mean D =             -0.03281    -0.03350    -0.03288    -0.03288
-Estimated Neb^  =             Infinite    Infinite    Infinite    Infinite
-
-95% CIs for Nb:
-* Parametric                  Infinite    Infinite    Infinite    Infinite
-                              Infinite    Infinite    Infinite    Infinite
-
-MOLECULAR COANCESTRY METHOD
-
-Harmonic Mean Sample Size =                                           37.2
-OverAll f1^    =                                                   0.05872
-Estimated Neb^ =                                                       8.5
-
-95% CIs for Ne^
-* Jackknife on Loci                                                    5.5
-                                                                      12.2
-**************************************************************************
-
-Ending time: Fri Apr 08 19:22:49 2022
+Ending time: Mon May 02 03:00:41 2022
 -------------------------------------
 

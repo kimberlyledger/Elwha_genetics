@@ -132,6 +132,33 @@ steelhead_adaptive.PCA %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Co
         legend.title = element_text(face = "bold", size = 16), 
         legend.text = element_text(size = 13, face = "bold"),
         plot.title = element_text(size = 18, face = "bold"))
+
+
+##dudi.pca version
+test<-steelhead_adaptive.genind
+testing<-test$tab
+f1 <- function(vec) {
+  m <- mean(vec, na.rm = TRUE)
+  vec[is.na(vec)] <- m
+  return(vec)
+}
+test<-apply(testing,2,f1)
+test<-as.data.frame(test)
+pca.here<-dudi.pca(test,center=TRUE,scale=FALSE,scannf=FALSE,nf=4)
+table<-pca.here$tab
+li<-pca.here$li
+l1<-pca.here$l1
+co<-pca.here$co
+c1<-pca.here$c1
+
+# Encode the row names with the SNP IDs
+for (i in 1:nrow(c1)){
+  c1$SNP[i] <- as.character(steelhead_adaptive[(which(steelhead_adaptive$SnpPos == substr(rownames(c1)[i], 1, nchar(rownames(c1)[i])-2))),3]) #3rd column of "steelhead_adaptive" includes SnpName
+}
+
+# Now you have a file (pca.c1) with all of the loadings
+write.csv(c1,"adaptivePCA_Loadings.csv")
+
 ```
 
 ##Plot allele frequency heatmaps of all adaptive loci *update steelhead.heatmap_005 with the updated dataset
@@ -148,9 +175,9 @@ for (i in 1:ncol(steelhead_afSNP)){
   colnames(steelhead_afSNP)[i] <- as.character(steelhead_adaptive[(which(steelhead_adaptive$SnpPos == substr(colnames(steelhead_afSNP)[i], 1, nchar(colnames(steelhead_afSNP)[i])-2))),3]) #3rd column of "steelhead_adaptive" includes SnpName
 }
 
-#Change row order as following: Pre_AD, Post_AD, Pre_ID, Post_ID, Pre_BD, During_BD, Post_BD, Post_SBLR
-#steelhead_af_ordered <- steelhead_afSNP[c(2, 7, 1, 6, 3, 4, 5, 8),]
-steelhead_af_ordered <- steelhead_afSNP[c("Pre_AD", "Post_AD", "Pre_ID", "Post_ID", "Pre_BD", "During_BD", "Post_BD", "Post_SBLR"),]
+#Change row order as following: Pre_AD, Post_AD, Pre_ID, Post_ID, Pre_BD, During_BD, Post_BD, Pre_SBLR, Post_SBLR
+#steelhead_af_ordered <- steelhead_afSNP[c(3, 8, 1, 6, 4, 5, 6, 2, 9),]
+steelhead_af_ordered <- steelhead_afSNP[c("Pre_AD", "Post_AD", "Pre_ID", "Post_ID", "Pre_BD", "During_BD", "Post_BD", "Pre_SBLR", "Post_SBLR"),]
 write.table(steelhead_af_ordered, "steelhead_af.txt", sep = "\t")
 
 steelhead_af_pruned <- read.delim("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/Elwha_genetics/steelhead_af_pruned.txt", row.names = 1) #Reread manually pruned table to have major allele frequency only for each locus 
@@ -190,6 +217,7 @@ steelhead_adaptiveSNP.gt.vcf_PostID <- steelhead_adaptiveSNP.gt.vcf[steelhead_ad
 steelhead_adaptiveSNP.gt.vcf_PreBD <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Pre_BD",]
 steelhead_adaptiveSNP.gt.vcf_DuringBD <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "During_BD",]
 steelhead_adaptiveSNP.gt.vcf_PostBD <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Post_BD",]
+steelhead_adaptiveSNP.gt.vcf_PreSBLR <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Pre_SBLR",]
 steelhead_adaptiveSNP.gt.vcf_PostSBLR <- steelhead_adaptiveSNP.gt.vcf[steelhead_adaptiveSNP.gt.vcf$Time_Location == "Post_SBLR",]
 
 steelhead_gf_PreAD <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_PreAD[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_PreAD)-1)],"/",expect=FALSE) #expect=FALSE to calculate "observed" genotype frequencies
@@ -223,15 +251,19 @@ write.table(steelhead_gf_PreBD, file = "steelhead_gf_PreBD.txt", sep = "\t")
 write.table(steelhead_gf_DuringBD, file = "steelhead_gf_DuringBD.txt", sep = "\t")
 write.table(steelhead_gf_PostBD, file = "steelhead_gf_PostBD.txt", sep = "\t")
 
+steelhead_gf_PreSBLR <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_PreSBLR[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_PreSBLR)-1)],"/",expect=FALSE)
+steelhead_gf_PreSBLR[] <- sapply(steelhead_gf_PostSBLR, function(x){x/sum(x)})
+steelhead_gf_PreSBLR$Time_Location <- "Pre_SBLR"
 steelhead_gf_PostSBLR <- GenotypeFreq(steelhead_adaptiveSNP.gt.vcf_PostSBLR[,2:(ncol(steelhead_adaptiveSNP.gt.vcf_PostSBLR)-1)],"/",expect=FALSE)
 steelhead_gf_PostSBLR[] <- sapply(steelhead_gf_PostSBLR, function(x){x/sum(x)})
 steelhead_gf_PostSBLR$Time_Location <- "Post_SBLR"
+write.table(steelhead_gf_PreSBLR, file = "steelhead_gf_PreSBLR.txt", sep = "\t")
 write.table(steelhead_gf_PostSBLR, file = "steelhead_gf_PostSBLR.txt", sep = "\t")
 
-#After this, in Excel, manually separate loci according to positions on Greb1 (Premature/Mature and Omy5 (Ancestral/Recombined) and combine files of same Location (e.g. steelhead_gf_BD; combined PreBD + DuringBD + PostBD), because "GenotypeFreq" function removes Sample ID. But you can just make combined files in advance here too, as they retain Pop info.
+#After this, in Excel, among all adaptive loci, manually check & remain markers based on positions on Greb1 and decide Premature/Mature genotypes according to "Chinook-and-Mykiss-Markers.xlsx". Then combine files of same Location (e.g. steelhead_gf_BD; combined PreBD + DuringBD + PostBD), because "GenotypeFreq" function removes Sample ID, we cannot know which genotype frequency is from which “Time”. But you can just make combined files in advance here too, as they retain Pop info.
 ```
 
-##Plot allele frequency heatmaps of GREB1L loci (*check summer-run/winter-run alleles and modify)
+##Plot genotype frequency heatmaps of GREB1L loci (*check summer-run/winter-run alleles and modify)
 ```{r}
 #Read files of GREB1L loci genotype frequencies for each run timing (summer-run, heterozygotes, winter-run)
 steelhead_gf_summerrun <- read_excel("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/Elwha_genetics/steelhead_gf_summerrun.xlsx")
@@ -345,7 +377,7 @@ if(!all(pop_names == rep(pop_names[-which(duplicated(pop_names))],
 }
 
 ### Identify the type of markers and modify SNPs data for GENEPOP usage
-if(all(unlist(unique(x@all.names)) %in% c("A", "T", "C", "G"))){
+if(all(unlist(unique(x@all.names)) %in% c("A", "T", "C", "G", "-"))){
   m_type <- "snp"
   message("Your dataset is treated as a SNP dataset.
           Alleles initially coded A, T, C, G were respectively coded
@@ -354,6 +386,7 @@ if(all(unlist(unique(x@all.names)) %in% c("A", "T", "C", "G"))){
   colnames(data) <- gsub(colnames(data),pattern="\\.T",replacement=".02")
   colnames(data) <- gsub(colnames(data),pattern="\\.C",replacement=".03")
   colnames(data) <- gsub(colnames(data),pattern="\\.G",replacement=".04")
+  colnames(data) <- gsub(colnames(data),pattern="\\.-",replacement=".00")
   #####
 } else {
   m_type <- "msat"
@@ -472,7 +505,7 @@ if(unique_pop){
     # Add the last population
   data_gpop2 <- rbind(data_gpop2, c("Pop", rep("", n.loci)),
                       data_gpop[(num_end_pop[length(num_end_pop)]+1):nrow(data_gpop), ])
-  }
+}
   
 # The two first lines are the heading and the names of the loci
 if(n.loci > 1){
@@ -497,7 +530,7 @@ utils::write.table(data_gpop2,file = "onmy_ne_genepop.txt", quote=FALSE,
 # The output file will be input to NeEstimator (sample names should be shortened not to include numbers similar to genotype frequencies)
 ```
 
-##Calculate DPS based on adaptive loci and change the DPS matrix to column/long format
+##Calculate Dps based on adaptive loci and change the Dps matrix to column/long format
 ```{r}
 steelhead_adaptive_dps <- 1 - propShared(steelhead_adaptive.genind)
 require(reshape2)
@@ -507,7 +540,7 @@ m <- melt(temp_m)
 rm(temp_m)
 IndData <- na.omit(m)
 IndData <- IndData[, c(2,1,3)] # Change the column order
-colnames(IndData) <- c('Ind1', 'Ind2', 'DPS') # Change column names to be mnemonic 
+colnames(IndData) <- c('Ind1', 'Ind2', 'Dps') # Change column names to be mnemonic 
 for (i in 1:nrow(IndData)){
   IndData$Sampling_Site[i] <- steelhead.metadata %>% filter(Sample_ID == IndData$Ind1[i]) %>% select(Location)
 }
