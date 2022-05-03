@@ -18,9 +18,19 @@ library(dartR)
 library(dplyr)
 library(tidyverse)
 library(factoextra)
+library(OutFLANK)
+library(hierfstat)
+library(cowplot)
+library(GGally)
+library(stringr)
+library(tidyr)
+library(ggpubr)
+library(cowplot)
+library(poppr)
 ```
 
 #Read the table 
+ 
 ```{r}
 meta <- read.csv("Elwha_Chinook_Formatted.csv")
 geno <- read.table("Chinook_Elwha_genotypes.txt")
@@ -30,6 +40,7 @@ geno[geno== 'N,N'] <- NA
 
 
 #transfer the data type
+
 ```{r}
 
 #rename the column name to get rid of "." and  "'"
@@ -49,12 +60,53 @@ dgenind <- df2genind(geno,
           loc.names=loci, 
           pop = place,
           ploidy = 2)
+metag <- cbind(geno,meta1)
+geno_pre <- metag %>% filter(Time=="Pre")
+geno_pre <- geno_pre[,c(1:318)]
+geno_post <- metag %>% filter(Time=="Post")
+geno_post <- geno_post[,c(1:318)]
+ind_pre <- rownames(geno_pre)
+ind_post <- rownames(geno_post)
+dgenind_pre <- df2genind(geno_pre, 
+          sep=",",
+          ind.names=ind_pre,
+          loc.names=loci, 
+          pop = place,
+          ploidy = 2)
+dgenind_post <- df2genind(geno_post, 
+          sep=",",
+          ind.names=ind_post,
+          loc.names=loci, 
+          pop = place,
+          ploidy = 2)
+geno_neutral_pre <- geno_pre[,-c(5:13,26:29)]
+geno_neutral_post <- geno_post[,-c(5:13,26:29)]
+loci_neutral <- colnames(geno_neutral_post)
+meta_pre <- meta %>% filter(Time=="Pre")
+meta_post <- meta %>% filter(Time=="Post")
+pop_pre <- meta_pre$Location
+pop_post <- meta_post$Location
+
+dgenind_neutral_pre <- df2genind(geno_neutral_pre, 
+          sep=",",
+          ind.names=ind_pre,
+          loc.names=loci_neutral, 
+          pop = pop_pre,
+          ploidy = 2)
+dgenind_neutral_post <- df2genind(geno_neutral_post, 
+          sep=",",
+          ind.names=ind_post,
+          loc.names=loci_neutral, 
+          pop = pop_post,
+          ploidy = 2)
 
 ```
 
-#HW test and LD test
+#HW test
+
 ```{r}
 hwe <- hw.test(dgenind)
+
 colnames(hwe)[3] = "P"
 hwe <- data.frame(hwe)
 hwe_neutral <- hwe %>% filter( df ==1 & P > 0.05)
@@ -65,13 +117,38 @@ hwe_adaptive <- hwe %>% filter(df==1 & P < 0.05)
 adp_filter <- rownames(hwe_adaptive)
 adp_index <- match(adp_filter, colnames(geno))
 
+
 genind_neutral <- dgenind[loc=neutral_index]
 genind_adp <- dgenind[loc=adp_index]
 
 ```
 
+#Fst Outlier 
+
+It seems there is no Fst outlier in the SNP.array
+
+```{r}
+SNPmat <- data.frame(dgenind@tab)
+SNPmat[is.na(SNPmat)==TRUE] <- 9
+loc <- colnames(SNPmat)
+indi <- rownames(SNPmat)
+pop <- dgenind@pop
+fstinput <- MakeDiploidFSTMat(SNPmat = SNPmat, locusNames = loc, popNames = pop)
+outlier <- OutFLANK(fstinput, LeftTrimFraction = 0.01, RightTrimFraction = 0.05, NumberOfSamples = 3, Hmin = 0.1, qthreshold = 0.01)
+OutFLANKResultsPlotter(outlier, withOutliers = TRUE, NoCorr = TRUE, Hmin = 0.1, binwidth = 0.005,
+                       Zoom = FALSE, RightZoomFraction = 0.05,titletext = NULL)
+fst <- pOutlierFinderChiSqNoCorr(fstinput,Fstbar=outlier$FSTNoCorrbar,
+                                dfInferred=outlier$dfInferred,qthreshold=0.05,Hmin=0.1)
+list_outlier <- fst$OutlierFlag == T 
+```
+#LD 
+```{r}
+LD_oaur <- pair.ia(dgenind,sample=354)
+```
+
 
 #PCA & DAPC
+
 ```{r}
 dapcn <- dapc(genind_neutral, n.pca=20, n.da = 10,var.contrib = TRUE, pca.info=TRUE)
 dapca <- dapc(genind_adp, n.pca=20, n.da = 10,var.contrib = TRUE, pca.info=TRUE,pop = meta1$Time)
@@ -80,10 +157,13 @@ plota <- scatter(dapca,xax=1,yax=2)
 gelin_neutral <- gi2gl(genind_neutral)
 gelin_adp <- gi2gl(genind_adp)
 gelin_nonfilter <- gi2gl(dgenind)
+genlin_neutral_pre <- gi2gl(dgenind_neutral_pre)
+genlin_neutral_post <- gi2gl(dgenind_neutral_post)
 pcan <- glPca(gelin_neutral, center = F, scale = F, nf =50)
 pcaa <- glPca(gelin_adp, center = F, scale = F, nf =50)
 pcap <- glPca(gelin_nonfilter, center = F, scale = F, nf =50)
-
+pcapren <- glPca(genlin_neutral_pre, center = F, scale = F, nf =50)
+pcapostn <- glPca(genlin_neutral_post, center = F, scale = F, nf =50)
 PCn <- data.frame(pcan$scores)
 PCn$Color <- meta1$Location
 PCn$Shape <- meta1$Time
@@ -93,8 +173,14 @@ PCa$Shape <- meta1$Time
 PCp <- data.frame(pcap$scores)
 PCp$Color <- meta1$Location
 PCp$Shape <- meta1$Time
+PCpren <- data.frame(pcapren$scores)
+PCpren$Color <- meta_pre$Location
+PCpren$Shape <- meta_pre$Time
+PCpostn <- data.frame(pcapostn$scores)
+PCpostn$Color <- meta_post$Location
+PCpostn$Shape <- meta_post$Time
 
-PCn %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Color, shape = Shape), size = 3, alpha=0.8) + 
+pcn_plot <- PCn %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Color, shape = Shape), size = 3, alpha=0.8) + 
   labs(color = "Location", shape = "Time")+
   scale_color_manual(values=c("#A9AFD1", "#9D5C63","#29335C")) + 
   theme_classic() + 
@@ -121,19 +207,354 @@ PCa %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Color, shape = Shape)
         legend.title = element_text(face = "bold", size = 16), 
         legend.text = element_text(size = 13, face = "bold"),
         plot.title = element_text(size = 18, face = "bold")) 
-
+pcnpre_plot <- PCpren %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Color), size = 4, alpha=0.8) + 
+  labs(color = "Location")+
+  scale_color_manual(values=c("#A9AFD1", "#9D5C63","#29335C")) + 
+  theme_classic() + 
+  theme(axis.text = element_text(size = 10, face = "bold"), 
+        axis.title = element_text(size = 13, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")) 
+pcnpost_plot <- PCpostn %>% ggplot(aes(x=PC1, y = PC2)) + geom_point(aes(col = Color), size = 4, alpha=0.8) + 
+  labs(color = "Location")+
+  scale_color_manual(values=c("#A9AFD1", "#9D5C63","#29335C")) + 
+  theme_classic() + 
+  theme(axis.text = element_text(size = 10, face = "bold"), 
+        axis.title = element_text(size = 13, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")) 
 
 scatter(pcan, xax=1, yax =2, clabel = 1, cpoint = 0.1, posi = "bottomright" )
-dev.copy(png, "dapc.png")
-dev.off()
 ```
+#loci has higher loading 
+
+Amazingly, the cluster in axis 2 are determined by greb1l and omy28
+
+```{r}
+loading <- loadingplot(pcan, axis = 2) 
+loading1 <- loadingplot(pcan,axis=1)
+genindcandi <- dgenind[loc=c(4:13,25:29)]
+lociC <- genindcandi$loc.n.all
+genoC <- geno[c(4:13,25:29)]
+genoC
+cbind(genoC,meta1)
+
+```
+# function of count genotype frequency
+
+```{r}
+calgenofreq <- function(geno,i){
+                count <- lapply(geno, table)
+                sum <- lapply(count, sum)
+                genofreq <- count[[i]]/sum[[i]]
+                return(genofreq)
+}
+
+
+genofreqlist <- function(genodata){
+                  v <- seq(1,length(genodata),1)
+                  freq <- lapply(v, calgenofreq,geno=genodata)
+                  names(freq) <- colnames(genodata)
+                  return(freq)
+  
+}
+
+calallelefreq <- function(genofreq, i){
+                minorgeno <- min(genofreq[[i]])
+                majorgeno <- max(genofreq[[i]])
+                if(length(genofreq[[i]])==3){
+                    majorallele <- as.numeric(majorgeno) + 1/2*as.numeric(genofreq[[i]][2])
+                    minorallele <- as.numeric(minorgeno) + 1/2*as.numeric(genofreq[[i]][2])
+                }
+                else{
+                  majorallele <- as.numeric(majorgeno) + 1/2*as.numeric(minorgeno)
+                  minorallele <- 1/2*as.numeric(minorgeno)
+                }
+                return(c(majorallele, minorallele))
+  
+}
+
+allelefreqlist <- function(genodata){
+                  v <- seq(1,length(genodata),1)
+                  freq <- lapply(v, calallelefreq,geno=genodata)
+                  names(freq) <- names(genodata)
+                  return(freq)
+}
+#year Ignore it
+geno2014 <- genoC %>% filter(grepl("X14", row.names(genoC)))
+geno2015 <- genoC %>% filter(grepl("X15", row.names(genoC)))
+geno2016 <- genoC %>% filter(grepl("X16", row.names(genoC)))
+geno2017 <- genoC %>% filter(grepl("X17", row.names(genoC)))
+geno2018 <- genoC %>% filter(grepl("X18", row.names(genoC)))
+#location
+genoCmeta<- cbind(genoC, meta1)
+genoID <- genoCmeta %>% filter(Location=="ID")
+genoID <- genoID[,1:15]
+genoBD <- genoCmeta %>% filter(Location=="BD")
+genoBD <- genoBD[,1:15]
+genoAD <- genoCmeta %>% filter(Location=="AD")                              
+genoAD <- genoAD[,1:15]                  
+genopre <- genoCmeta %>% filter(Time=="Pre")
+genopre <- genopre[,1:15]
+genodur <- genoCmeta %>% filter(Time=="During")
+genodur <- genodur[,1:15]
+genopos <- genoCmeta %>% filter(Time=="Post")
+genopos <- genopos[,1:15]
+#genopreID <- genoCmeta %>% filter(Time=="Pre") %>% filter(Location=="ID")
+#genopreAD <- genoCmeta %>% filter(Time=="Pre") %>% filter(Location=="AD")
+#genopreBD <- genoCmeta %>% filter(Time=="Pre") %>% filter(Location=="BD")
+#genodurID <- genoCmeta %>% filter(Time=="During") %>% filter(Location=="ID")
+#genodurAD <- genoCmeta %>% filter(Time=="During") %>% filter(Location=="AD")
+#genodurBD <- genoCmeta %>% filter(Time=="During") %>% filter(Location=="BD")
+#genoPostID <- genoCmeta %>% filter(Time=="Post") %>% filter(Location=="ID")
+#genoPostAD <- genoCmeta %>% filter(Time=="Post") %>% filter(Location=="AD")
+#genoPostBD <- genoCmeta %>% filter(Time=="Post") %>% filter(Location=="BD")
+#genopreID <- genopreID[,1:15]
+#genopreAD <- genopreAD[,1:15]
+#genopreBD <- genopreBD[,1:15]
+#genoPostID <- genoPostID[,1:15]
+#genoPostAD <- genoPostAD[,1:15]
+#genoPostBD <- genoPostBD[,1:15]
+#genodurAD <- genodurAD[,1:15]
+#genodurID <- genodurID[,1:15]
+#genodurBD <- genodurBD[,1:15]
+
+
+genofreq <-genofreqlist(genoC)
+#genofreq2014 <- genofreqlist(geno2014)
+#genofreq2015 <- genofreqlist(geno2015)
+#genofreq2016 <- genofreqlist(geno2016)
+#genofreq2017 <- genofreqlist(geno2017)
+#genofreq2018 <- genofreqlist(geno2018)
+
+
+#genofreqpreAD <- genofreqlist(genopreAD)
+#genofreqpreID <- genofreqlist(genopreID)
+#genofreqpreBD <- genofreqlist(genopreBD)
+#genofreqdurID <- genofreqlist(genodurID)
+#genofreqdurBD <- genofreqlist(genodurBD)
+#genofreqdurAD <- genofreqlist(genodurAD)
+#genofreqpostID <- genofreqlist(genoPostID)
+#genofreqpostAD <- genofreqlist(genoPostAD)
+#genofreqpostBD <- genofreqlist(genoPostBD)
+genofreqpost <- genofreqlist(genopos)
+genofreqdur <- genofreqlist(genodur)
+genofreqpre <- genofreqlist(genopre)
+
+#allelefreq2015 <- allelefreqlist(genofreq2015)
+#allelefreq2016 <- allelefreqlist(genofreq2016)
+#allelefreq2017 <- allelefreqlist(genofreq2017)
+#allelefreq2018 <- allelefreqlist(genofreq2018)
+#allelefreqpreAD <- allelefreqlist(genofreqpreAD)
+#allelefreqpreID <- allelefreqlist(genofreqpreID)
+#allelefreqpreBD <- allelefreqlist(genofreqpreBD)
+#allelefreqdurAD <- allelefreqlist(genofreqdurAD)
+#allelefreqdurID <- allelefreqlist(genofreqdurID)
+#allelefreqdurBD <- allelefreqlist(genofreqdurBD)
+#allelefreqposBD <- allelefreqlist(genofreqpostBD)
+#allelefreqposAD <- allelefreqlist(genofreqpostAD)
+#allelefreqposID <- allelefreqlist(genofreqpostID)
+#allelefreqpos <- allelefreqlist(genofreqpost)
+#allelefreqpre <- allelefreqlist(genofreqpre)
+#allelefreqdur <- allelefreqlist(genofreqdur)
+#allelefreq <- allelefreqlist(genofreq)
+#allelefreq2014 <- allelefreqlist(genofreq2014)
+
+```
+
+#plot the change of geno freq
+
+```{r}
+(gedf2014 <- arrange(data.frame(genofreq2014)))
+gedf2015 <- arrange(data.frame(genofreq2015)) 
+gedf2016 <- arrange(data.frame(genofreq2016)) 
+gedf2017 <- arrange(data.frame(genofreq2017)) 
+gedf2018 <- arrange(data.frame(genofreq2018)) 
+gedfpreID <- arrange(data.frame(genofreqpreID))
+gedfpreAD <- arrange(data.frame(genofreqpreAD))
+gedfpreBD <- arrange(data.frame(genofreqpreBD))
+gedfdurID <- arrange(data.frame(genofreqdurID))
+gedfdurBD <- arrange(data.frame(genofreqdurBD))
+gedfdurAD <- arrange(data.frame(genofreqdurAD))
+gedfposID <- arrange(data.frame(genofreqpostID))
+gedfposBD <- arrange(data.frame(genofreqpostBD))
+gedfposID <- arrange(data.frame(genofreqpostID))
+gedfpre <- arrange(data.frame(genofreqpre))
+gedfdur <- arrange(data.frame(genofreqdur))
+gedfpos <- arrange(data.frame(genofreqpost))
+calgenofreq2 <- function(geno,year){
+  if(nrow(geno)==3){
+    geno1 <- geno %>% gather(key="marker", value = "genofreq", seq(2,30,2)) %>% 
+      group_by(marker) %>% arrange(genofreq, .by_group = T) %>% dplyr::select(marker,genofreq) %>%
+      mutate(genofreqtype= rep(c("Spring Run Homozygote","Heterozygote", "Fall Run Homozygote"))) %>% mutate(year=year)
+  }
+  else{
+     geno1 <- geno %>% gather(key="marker", value = "genofreq", seq(2,30,2)) %>% 
+      group_by(marker) %>% arrange(genofreq, .by_group = T) %>% dplyr::select(marker,genofreq) %>%
+      mutate(genofreqtype= rep(c("Heterozygote", "Fall Run Homozygote"))) %>% mutate(year=year)
+  }
+  
+  geno2 <- geno %>% gather(key="marker", value= "genotype", seq(1,29,2)) %>% dplyr::select(genotype) 
+  geno1$marker <- gsub(".Freq", "", geno1$marker)
+  genor <- cbind(geno1,geno2)
+  return(genor)
+  
+  
+}
+genofreqtidy2014 <- calgenofreq2(gedf2014,2014)
+genofreqtidy2015 <- calgenofreq2(gedf2015,2015)
+genofreqtidy2016 <- calgenofreq2(gedf2016,2016)
+genofreqtidy2017 <- calgenofreq2(gedf2017,2017)
+genofreqtidy2018 <- calgenofreq2(gedf2014,2018)
+genofreqtidypre <- calgenofreq2(gedfpre,"Pre")
+genofreqtidydur <- calgenofreq2(gedfpre,"Dur")
+genofreqtidypost <- calgenofreq2(gedfpre,"Post")
+genofreqtidydam <- data.frame(rbind(genofreqtidypre, genofreqtidydur,genofreqtidypost))%>% 
+  mutate(genotype_number=dplyr::case_when(genofreqtype == "Spring Run Homozygote" ~ 0,
+                                   genofreqtype == "Heterozygote" ~ 1,
+                                   genofreqtype == "Fall Run Homozygote" ~2))
+genofreqtidy <- rbind(genofreqtidy2014,genofreqtidy2015,genofreqtidy2016,genofreqtidy2017,genofreqtidy2017,genofreqtidy2018) %>% 
+  mutate(genotype_number=dplyr::case_when(genofreqtype == "minor_homo" ~ 0,
+                                   genofreqtype == "heterozygote" ~ 1,
+                                   genofreqtype == "Fall Run Homozygote" ~2))
+genofreqtidy$genofreqtype <- factor(genofreqtidy$genofreqtype, level = c("minor_homo", "heterozygote", "major_homo"))
+(genoplot <- genofreqtidy %>% ggplot(aes(x=genofreqtype,y=genofreq,fill=genofreqtype))+ geom_boxplot(width=0.3,alpha=1) + 
+    geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + theme_classic() + labs(x="Genotype", y= "Genotype Frequency") + scale_x_discrete(labels=c("major_homo" = "Fall Run Homozygote", "minor_homo"="Spring Run Homozygote"))+ 
+  scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+ 
+  scale_y_continuous(breaks=seq(0.1,1,0.1))+
+  guides(fill= F) + 
+  theme(axis.text = element_text(size = 12, face = "bold"), 
+        axis.title = element_text(size = 14, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")))
+genofreqtidydam$year <- factor(genofreqtidydam$year,level=c("Pre","Dur", "Post"))
+plot1 <- genofreqtidydam %>% ggplot(aes(x=year,y=genofreq,fill=year)) + geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + geom_boxplot(width=0.3,alpha=1)+ facet_grid(.~genofreqtype,labeller = labeller("minor_homo"="Spring Run Homozygote", "major_homo" = "Fall Run Homozygote", "heterozygote"="heterozygote"))+ scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+  theme_classic()+
+  theme(axis.text = element_text(size = 12, face = "bold"), 
+        axis.title = element_text(size = 14, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold"),
+        strip.text.x=element_text(size= 12, face="bold"),
+        plot.margin = unit(c(0,0,0,0),"cm")
+       )+stat_compare_means(method = "anova",label.y=1)+ labs(y="Genotype Frequency", x= "Time",fill="Time")
+
+plot1a <- genofreqtidydam %>% ggplot(aes(x=year,y=genofreq,fill=year)) + geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + geom_boxplot(width=0.3,alpha=1)+ facet_grid(.~genofreqtype,labeller = labeller("minor_homo"="Spring Run Homozygote", "major_homo" = "Fall Run Homozygote", "heterozygote"="heterozygote"))+ scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+  theme_classic()+
+  theme(axis.text = element_text(size = 12, face = "bold"), 
+        axis.title = element_text(size = 14, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold"),
+        strip.text.x=element_text(size= 12, face="bold"),
+        plot.margin = unit(c(0,0,0,0),"cm"))+stat_compare_means(method = "anova",label.y=1)+ labs(y="Genotype Frequency", x= "Time",fill="Time") + guides(fill="none")
+legend1 <- get_legend(plot1)
+
+mean <- genofreqtidy %>% group_by(year) %>% group_by(genofreqtype)%>% summarise(average= mean(genofreq)) %>% ungroup()
+genofreqtidy %>% ggplot(aes(x=year,y=genofreq)) + geom_point(position=position_jitter(0.05),alpha=0.7,size=2)  + geom_boxplot(aes(x=year,y=genofreq, group = year),width=0.5) + 
+  scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C")) + facet_grid(.~genofreqtype, labeller = labeller(minor_homo="Spring Run Homozygote", major_homo = "Fall Run Homozygote", heterozygote="heterozygote"))
+
+```
+
+
+#plot the change of allele freq
+
+```{r}
+#change the format of list 
+allelefreqdf <- function(list){
+                   df <- data.frame(list)
+                   rownames(df)[1] = "major"
+                   rownames(df)[2] = "minor"
+                   return(df)
+}
+aldf <-allelefreqdf(allelefreq)
+#aldf2014 <-allelefreqdf(allelefreq2014)
+#aldf2015 <-allelefreqdf(allelefreq2015)
+#aldf2016 <-allelefreqdf(allelefreq2016)
+#aldf2017 <-allelefreqdf(allelefreq2017)
+#aldf2018 <-allelefreqdf(allelefreq2018)
+aldfpre <- allelefreqdf(allelefreqpre)
+aldfpost <- allelefreqdf(allelefreqpos)
+aldfdur <- allelefreqdf(allelefreqdur)
+alleletype <- rep(c("Major","Minor"),15)
+#tidyaldf2014 <-aldf2014 %>% gather(key="marker", value = "allelefreq",c(1:15)) %>% cbind(alleletype) %>% mutate(year="2014")
+#tidyaldf2015 <-aldf2014 %>% gather(key="marker", value = "allelefreq",c(1:15)) %>% cbind(alleletype) %>% mutate(year="2015")
+#tidyaldf2016 <-aldf2016 %>% gather(key="marker", value = "allelefreq",c(1:15)) %>% cbind(alleletype) %>% mutate(year="2016")
+#tidyaldf2017 <-aldf2017 %>% gather(key="marker", value = "allelefreq",c(1:15)) %>% cbind(alleletype) %>% mutate(year="2017")
+#tidyaldf2018 <-aldf2018 %>% gather(key="marker", value = "allelefreq",c(1:15)) %>% cbind(alleletype) %>% mutate(year="2018")
+tidyaldfpre <-aldf2018 %>% gather(key="marker", value = "allelefreq",c(1:15)) %>% cbind(alleletype) %>% mutate(year="Pre")
+tidyaldfDur <-aldf2018 %>% gather(key="marker", value = "allelefreq",c(1:15)) %>% cbind(alleletype) %>% mutate(year="Dur")
+tidyaldfpos <-aldf2018 %>% gather(key="marker", value = "allelefreq",c(1:15)) %>% cbind(alleletype) %>% mutate(year="Post")
+#tidyald <- rbind(tidyaldf2014, tidyaldf2015,tidyaldf2016,tidyaldf2017,tidyaldf2018)
+tidyalddam <- rbind(tidyaldfpre, tidyaldfDur,tidyaldfpos)
+plot2 <- tidyalddam %>% ggplot(aes(x=year,y=allelefreq,fill=year)) + geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + geom_boxplot(width=0.3,alpha=1)+ facet_grid(.~alleletype)+ scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+  theme_classic()+
+  theme(axis.text = element_text(size = 12, face = "bold"), 
+        axis.title = element_text(size = 14, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold"),
+        strip.text.x=element_text(size= 12, face="bold"),
+        axis.title.x = element_blank(),
+        plot.margin = unit(c(0,0,0,0),"cm")
+       )+stat_compare_means(method = "anova",label.y=1)+labs(y="Allele Frequency", x= "Time",fill="Time") + guides(fill=F)
+#(alleleoplot <- tidyald %>% ggplot(aes(x=alleletype,y=allelefreq,fill=alleletype))+  geom_boxplot(width=0.3,alpha=1) +
+ #   geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + theme_classic() + labs(x="Allele", y= "Allele Frequency") +
+  #scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+ 
+  #scale_y_continuous(breaks=seq(0.1,1,0.1))+
+  #guides(fill= F) + 
+  #theme(axis.text = element_text(size = 12, face = "bold"), 
+    #    axis.title = element_text(size = 14, face = "bold"), 
+     #   axis.line = element_line(size = 1.2),
+      #  axis.title.y = element_text(angle = 90),
+       # legend.position = "bottom", 
+        #legend.box = "horizontal", 
+        #legend.title = element_text(face = "bold", size = 16), 
+        #legend.text = element_text(size = 13, face = "bold"),
+      #  plot.title = element_text(size = 18, face = "bold")))
+#(alplotin <- rbind(tidyaldf2014,tidyaldf2015,tidyaldf2016,tidyaldf2017,tidyaldf2018))
+#alplotin %>% ggplot(aes(x=year,y=allelefreq,group=alleletype)) + 
+ # geom_line(aes(color= alleletype), size=0.8) + 
+#  geom_point(aes(color=alleletype), size=1.2) + 
+ # facet_wrap(.~marker)+theme_classic() + scale_color_manual(values = c("#e688a1","#e3c878"))
+allelegenoplot <- plot_grid(genoplot,alleleoplot)
+freqplot <- plot_grid(plot2,plot1a, align="h",axis = "lr", ncol= 1, labels = "AUTO")
+freqplot_legend <- plot_grid(freqplot,legend1,nrow = 2,rel_heights = c(1,0.1))
+
+```
+
+
 
 #admixture analysis
 ```{r}
 k <- c(2:7)
 i <- c(1:6)
 clust <- function(K,data){
-  clust<- snapclust(data, k=K, pop.ini = NULL,)
+  clust<- snapclust(data, k=K, pop.ini = NULL,hybrids = F)
   return(clust)
 }
 
@@ -145,7 +566,27 @@ binding <- function(i){
 }
 qmeta <- lapply(i, binding)
 col <- 20 #the location of prob.1
+log_AIC <- list()
+log_BIC <- list()
+log_AICc <- list()
+for (a in i) {
+  log_AIC[[a]] <- AIC(qvalue[[a]])
+  log_AICc[[a]] <- AICc(qvalue[[a]])
+  log_BIC[[a]] <- BIC(qvalue[[a]])
+  
+}
+log_AIC <- unlist(log_AIC)
+log_AICc <- unlist(log_AICc)
+log_BIC <- unlist(log_BIC)
+icdata <- data.frame(K=seq(2,7,1),
+             AIC=log_AIC,
+             AICc=log_AICc,
+             BIC=log_BIC)
 
+aic <- icdata %>% ggplot(aes(x=K, y=AIC))+ geom_line(size=1.2) + geom_point(size=2) + theme_classic()
+aicc <- icdata %>% ggplot(aes(x=K, y=AICc))+ geom_line(size=1.2) + geom_point(size=2) + theme_classic()
+bic <- icdata %>% ggplot(aes(x=K, y=BIC))+ geom_line(size=1.2) + geom_point(size=2) + theme_classic()
+icplot <- plot_grid(aic, aicc,labels= "AUTO", ncol=2,nrow=1)
 tidyq <- function(i){
   lastcol <- colnames(qmeta[[i-1]])[col+i-1]
   admix_gg <- data.frame(qmeta[[i-1]]) %>% gather(key = clustname, value = "clust", proba.1:paste(lastcol)) %>% 
@@ -162,74 +603,66 @@ admixgg4 <- tidyq(4)
 admixgg5 <- tidyq(5)
 admixgg6 <- tidyq(6)
 admixgg7 <- tidyq(7)
-adplot <- function(file){
+adplot <- function(file,i){
     file %>%  ggplot() + geom_col(aes(x=SPP_ID3, y=clust, fill=group),width=1) + 
     scale_x_discrete(expand=c(0,0)) + 
     scale_y_continuous(expand=c(0,0)) +
     scale_fill_manual(values=c("#CDC6A5","#A69BB6","#A3869A","#A0717F","#9D5C63","#634860", "#29335C"))+
     theme_classic(base_size = 10) +
     theme(axis.text.x = element_text(angle = 80, hjust = 0.5, size = 7)) +
-    labs(x="", y="K = 2") +
+    labs(x="", y= paste("K =", i )) +
     facet_grid(.~Location, scales = "free_x", space = "free_x") +
     theme(strip.background = element_blank(), 
-          strip.text = element_text(size = 11, face = "bold"),
+          strip.text = element_text(size = 14, face = "bold"),
           panel.spacing = unit(0, "lines"),
           panel.border = element_rect(fill = NA, color = "gray40"),
-          axis.title.y = element_text(size = 12, face = "bold"),
+          axis.title.y = element_text(size = 16, face = "bold"),
           axis.text.x=element_blank(),
           axis.text.y=element_blank(),
           axis.ticks.x=element_blank(),
           axis.ticks.y=element_blank(),
           legend.position = "none") 
 }
-(adplot2 <- adplot(admixgg2))
-(adplot3 <- adplot(admixgg3))
-(adplot4 <- adplot(admixgg4))
-(adplot5 <- adplot(admixgg5))
-(adplot6 <- adplot(admixgg6))
-(adplot7 <- adplot(admixgg7))
-(plot2 <- admixgg2 %>% 
-    ggplot() + geom_col(aes(x=SPP_ID3, y=clust, fill=group),width=1) + 
-    scale_x_discrete(expand=c(0,0)) + 
-    scale_y_continuous(expand=c(0,0)) +
-    scale_fill_manual(values=c("#6bc5d2","#e3c878","#e688a1","#ffba92","#d6e4aa"))
-                +
-    theme_classic(base_size = 10) +
-    theme(axis.text.x = element_text(angle = 80, hjust = 0.5, size = 7)) +
-    labs(x="", y="K = 2") +
-    facet_grid(.~Location, scales = "free_x", space = "free_x") +
-    theme(strip.background = element_blank(), 
-          strip.text = element_text(size = 11, face = "bold"),
-          panel.spacing = unit(0, "lines"),
-          panel.border = element_rect(fill = NA, color = "gray40"),
-          axis.title.y = element_text(size = 12, face = "bold"),
-          axis.text.x=element_blank(),
-          axis.text.y=element_blank(),
-          axis.ticks.x=element_blank(),
-          axis.ticks.y=element_blank(),
-          legend.position = "none")) 
+(adplot2 <- adplot(admixgg2,2))
+(adplot3 <- adplot(admixgg3,3))
+(adplot4 <- adplot(admixgg4,4))
+(adplot5 <- adplot(admixgg5,5))
+(adplot6 <- adplot(admixgg6,6))
+(adplot7 <- adplot(admixgg7,7))
 
-(plot3 <- admixgg3 %>% 
-    ggplot() + geom_col(aes(x=SPP_ID3, y=clust, fill=group),width=1) + 
-    scale_x_discrete(expand=c(0,0)) + 
-    scale_y_continuous(expand=c(0,0)) +
-    scale_fill_manual(name="Cluster",
-                      values=c("#6bc5d2","#e3c878","#e688a1","#ffba92","#d6e4aa"),
-                      labels=c("proba.1","proba.2", "proba.3"))+
-    theme_classic(base_size = 10) +
-    theme(axis.text.x = element_text(angle = 80, hjust = 0.5, size = 7)) +
-    labs(x="", y="K = 3") +
-    facet_grid(.~Location, scales = "free_x", space = "free_x") +
-    theme(strip.background = element_blank(), 
-          strip.text = element_text(size = 11, face = "bold"),
-          panel.spacing = unit(0, "lines"),
-          panel.border = element_rect(fill = NA, color = "gray40"),
-          axis.title.y = element_text(size = 12, face = "bold"),
-          axis.text.x=element_blank(),
-          axis.text.y=element_blank(),
-          axis.ticks.x=element_blank(),
-          axis.ticks.y=element_blank(),
-          legend.position = "none")) 
+adplot23 <- plot_grid(adplot3,adplot4, nrow=2,ncol=1)
 
+```
+
+heatmap
+```{r}
+genoC1 <- genoC
+write.csv(genoC, "genoC.csv")
+genoC1[is.na(genoC1==T)] <- "-1,-1"
+genoC1 %>% tidyr::separate(col=Ots28_11070757, sep= ",", into=c("Ots28_11070757_SNP1","Ots28_11070757_SNP2"))
+splitald <- function(data,col){
+  col1 <- paste(col, "SNP1")
+  col2 <- paste(col, "SNP2")
+  data1 <- data %>% tidyr::separate(col, sep= ",", into=c(col1,col2)) 
+  data2 <- data1 %>% dplyr::select(col1,col2)
+  t <- data2 %>% dplyr::count(data2[2])
+  data2[data2==t[3,1]] <- 1
+  data2[data2==t[2,1]] <- 0
+  return(data2)
+  
+}
+splitald(genoC1, "Ots28_11070757" )
+genoC1col <- colnames(genoC1)
+genoC1list <- lapply(genoC1col, splitald, data=genoC1)
+df_heatmap <- as.data.frame(do.call(cbind, genoC1list),stringsAsFactors = FALSE)
+tidy_heatmap <- df_heatmap %>% rownames_to_column(var="individual") %>%  gather(SNP, allele, 2:31) %>% filter(grepl("SNP1",SNP))
+tidy_heatmap %>% ggplot(aes(x=SNP,y=individual,fill=allele)) + geom_tile()
+
+
+genoC1$Ots28_11070757[genoC1$Ots28_11070757= "G"]
+heatmap_geno <- genindcandi$tab
+heatmap_geno[is.na(heatmap_geno)==T] <- -1
+heatmap_geno
+genoC
 ```
 
