@@ -19,17 +19,17 @@ library(forcats)
 # Part 1: create genind objects
 
 ```{r}
-onmy_n_df <- read.csv("outputs/my_nonoutlierloci.csv")
+onmy_n_df <- read.csv("outputs/omy_loci4genstr.csv")
 ```
 
 ## create a genind object for all samples using time/location as population
 ```{r}
-geno_n <- onmy_n_df[,c(2:316)]
+geno_n <- onmy_n_df[,c(2:272)]
 rownames(geno_n) <- onmy_n_df$Sample_ID
 col_geno_n <- gsub("\\.", "_", colnames(geno_n))
 colnames(geno_n) <- col_geno_n
 
-meta_n <- onmy_n_df[,-c(1:316)]
+meta_n <- onmy_n_df[,-c(1:272)]
 
 loci <- colnames(geno_n)
 ind <- rownames(geno_n)
@@ -53,10 +53,6 @@ geno_pre <- onmy_n_df %>%
   dplyr::mutate(Location = fct_relevel(Location, "BD", "SBLR", "ID", "AD")) %>% 
   arrange(Location, rkm)
 
-geno_during <- onmy_n_df %>%
-  filter(Time == "During") %>%
-  arrange(Location, rkm)
-
 geno_post <- onmy_n_df %>%
   filter(Time == "Post") %>%
   dplyr::mutate(Location = fct_relevel(Location, "BD", "SBLR", "ID", "AD")) %>% 
@@ -66,12 +62,12 @@ geno_post <- onmy_n_df %>%
 ## create genind objects from pre and post dam samples (during excluded because there are few)
 
 ```{r}
-geno_n_pre <- geno_pre[,c(2:316)]
+geno_n_pre <- geno_pre[,c(2:272)]
 rownames(geno_n_pre) <- geno_pre$Sample_ID
 col_geno_n_pre <- gsub("\\.", "_", colnames(geno_n_pre))
 colnames(geno_n_pre) <- col_geno_n_pre
 
-meta_pre <- geno_pre[,-c(1:316)]
+meta_pre <- geno_pre[,-c(1:272)]
 
 pre_loci <- colnames(geno_n_pre)
 pre_ind <- rownames(geno_n_pre)
@@ -95,12 +91,12 @@ onmy_genind_pre_location
 onmy_genind_pre_site
 
 
-geno_n_post <- geno_post[,c(2:316)]
+geno_n_post <- geno_post[,c(2:272)]
 rownames(geno_n_post) <- geno_post$Sample_ID
 col_geno_n_post <- gsub("\\.", "_", colnames(geno_n_post))
 colnames(geno_n_post) <- col_geno_n_post
 
-meta_post <- geno_post[,-c(1:316)]
+meta_post <- geno_post[,-c(1:272)]
 
 post_loci <- colnames(geno_n_post)
 post_ind <- rownames(geno_n_post)

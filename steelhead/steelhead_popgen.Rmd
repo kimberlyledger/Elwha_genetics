@@ -24,6 +24,7 @@ library(poppr) #a package for pop gen data analysis
 ```{r}
 onmy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Steelhead_Formatted.csv")
 head(onmy_metadata)
+nrow(onmy_metadata)
 ```
 ### check out a quick summary tables of the metadata 
 ```{r, message=FALSE}
@@ -45,7 +46,6 @@ onmy_genind <- vcfR2genind(onmy_vcf, sep = "/")
 onmy_genind
 ```
 
-note: there is a warning about "stack imbalance". is this a problem? 
 
 ## add population information into the genind object  - Location or Sampling_Site????
 ```{r}
@@ -73,7 +73,7 @@ setPop(onmy_genind) <- ~pop
 onmy_genind
 ```
 
-note: there are eight samples with missing genotypes from the metadata file
+note: there are three samples with missing genotypes from the metadata file
 
 
 # Part 1: Hardy-Weinburg Equilibrium
@@ -90,7 +90,7 @@ onmy_out_of_hw <- onmy_hw %>%
 nrow(onmy_out_of_hw)
 ```
 
-there are **106 loci** out of HWE 
+there are **124 loci** out of HWE 
 
 ### check for deviations from hardy-weinberg equilibrium at the "population" level
 for population, i am using location informaiton 
@@ -100,7 +100,7 @@ onmy_hw_test <- data.frame(sapply(seppop(onmy_genind),
                               function(ls) pegas::hw.test(ls, B = 0)[,3])) #skipping permutation test
 
 # remove the column for the population that is just samples that did not have population metadata 
-onmy_hw_test2 <- onmy_hw_test[,-4]
+onmy_hw_test2 <- onmy_hw_test[,-5]
 
 onmy_hw_chisq <- t(data.matrix(onmy_hw_test2))
 #{cat("Chi-squared test (p-values):", "\n")
@@ -117,8 +117,7 @@ Prop.pop.out.of.HWE <- data.frame(Chisq=apply(onmy_hw_chisq<alpha, 1, mean))
 Prop.pop.out.of.HWE
 ```
 
-* there are **54 loci** out of HWE  
-* the "population" SBLR is also consistently out of HWE across loci
+* there are **XX loci** out of HWE  
 
 
 ## read in loci metadata
