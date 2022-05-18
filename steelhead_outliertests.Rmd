@@ -16,7 +16,7 @@ library(tidyr) # data manipulation
 
 # Part 1: Prepare the data
 
-## read in the steelhead (Oncorhynchus mykiss) metadata - replace with UPDATED version
+## read in the steelhead (Oncorhynchus mykiss) metadata
 
 ### I changed Time == During individuals to Time == Pre in Elwha_Steelhead_Formatted_kjl.csv 
 ```{r}
@@ -24,7 +24,7 @@ onmy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Steelhead_Fo
 head(onmy_metadata)
 nrow(onmy_metadata)
 ```
-### create column to represent both location (AD/ID/BD/SBLR) and time (pre/during/post)
+### create column to represent both location (AD/ID/BD/SBLR) and time (pre/post)
 ```{r}
 onmy_metadata <- onmy_metadata %>%
   unite("Time_Location", c(Time, Location), sep= "_", remove = FALSE)
@@ -52,13 +52,13 @@ head(geno[,1:10])
 
 ## check vcf file for missing data 
 ```{r}
-myMiss_loci <- apply(geno, MARGIN = 2, function(x){ sum(is.na(x)) })
+myMiss_loci <- apply(geno, MARGIN = 1, function(x){ sum(is.na(x)) })
 myMiss_loci <- myMiss_loci/nrow(geno)
 
 barplot(myMiss_loci, main = "Loci")
 title(ylab = "Missingness (%)")
 
-myMiss_sample <- apply(geno, MARGIN = 1, function(x){ sum(is.na(x)) })
+myMiss_sample <- apply(geno, MARGIN = 2, function(x){ sum(is.na(x)) })
 myMiss_sample <- myMiss_sample/ncol(geno)
 
 barplot(myMiss_sample, main = "Samples")
@@ -79,8 +79,7 @@ samples <- colnames(geno_filtered)
 snp <- rownames(geno_filtered)
 ```
 
-**% missing data** does not change very much with sample filtering...  
-now, we have 1380 samples 
+no samples have >20% missing data so filtering does not change the sample count... we have 1468 samples... 
 
 
 Notice that as our genotypes look like 0/0, 0/1, and 1/1. But OutFLANK wants them to be 0, 1, or 2. The code below fixes this problem:
@@ -302,6 +301,7 @@ table(outliers_post)
 outlier_table_post <- P1_post %>%
   filter(OutlierFlag == "TRUE")
 outlier_table_post
+
 ```
 
 26 OUTLIERS IN POST DAM DATASET!!! 
@@ -344,62 +344,21 @@ filter for only outliers
 onmy_snp_outliers <- onmy_snp %>%
   filter(OutlierFlag == TRUE)
 onmy_snp_outliers
+
+#write.csv(onmy_snp_outliers, "outputs/fst_outlier_loci_post_onmy.csv")
 ```
 
 there are now 27 rows because the SNP NC_035104.1_11667915 has duplicate loci metadata.  
 
-look at non-outliers 
-```{r}
-onmy_snp_adapt_nonoutlier <- onmy_snp %>%
-  filter(OutlierFlag != TRUE) %>%
-  filter(Status == "Adaptive")
-onmy_snp_adapt_nonoutlier
-```
 
-there are 65 loci in the GTSeq panel that were indicated as "adaptive" that were not identified as Fst outliers. 
-
-```{r}
-onmy_snp_adapt_nonoutlier %>%
-  group_by(chromosome) %>%
-  summarise(n())
-```
-
-join measures of LD with these "adaptive" non-outlier loci to help choose which to retain (max 1 "adaptive" loci per chromosome)
-
-
-```{r}
-ld <- read.table("~/Desktop/LG_Proj4/vcftool_analyses/ld.geno.ld", as.is=T, row.names=NULL, header=T)
-
-adapt_pos <- onmy_snp_adapt_nonoutlier$Physical_Position
-```
-
-```{r}
-ld1 <- ld[ld$POS1 %in% adapt_pos,]
-ld2 <- ld[ld$POS2 %in% adapt_pos,]
-
-high_ld <- ld1 %>%
-  bind_rows(ld2) %>%
-  filter(R.2 > 0.02) %>%
-  arrange(desc(R.2))
-```
-
-in this file i have chosen which "adaptive" snps to keep and which to remove from population structure analyses... this was based on removing all loci with LD>0.02 and to only keep 1 "adaptive" snp per chromosome
-```{r}
-onmy_snp_adapt_nonoutlier_removed <- read.csv("onmy_snp_adapt_outlier_edit.csv") %>%
-  filter(remove == "yes")
-```
-
-
-## filter vcf data to remove Fst outliers 
+filter vct gt to remove the outlier loci 
 ```{r}
 remove1 <- onmy_snp_outliers$LocusName
-remove2 <- onmy_snp_adapt_nonoutlier_removed$LocusName
 
 geno_nonoutlier <- geno_filtered[!rownames(geno_filtered) %in% remove1, ]
 dim(geno_nonoutlier)
-geno_nonoutlier <- geno_nonoutlier[!rownames(geno_nonoutlier) %in% remove2, ]
-dim(geno_nonoutlier)
 ```
+
 
 ## transpose nonoutlier genotypes and combine with sample metadata 
 ```{r}
@@ -407,14 +366,243 @@ tG_nonout <- t(geno_nonoutlier)
 tG_nonout <- as.data.frame(tG_nonout)
 tG_nonout$Sample_ID <- rownames(tG_nonout)
 
-onmy_n_df <- tG_nonout %>%
+onmy_nonout_df <- tG_nonout %>%
+  left_join(onmy_metadata, by = "Sample_ID")
+```
+
+## check for deviation from HWE 
+
+## create genind objects from pre and post dam samples 
+```{r}
+onmy_nonout_df_pre <- onmy_nonout_df %>%
+  filter(Time == "Pre")
+
+onmy_nonout_df_post <- onmy_nonout_df %>%
+  filter(Time == "Post")
+
+geno_n_pre <- onmy_nonout_df_pre[,c(1:308)]
+rownames(geno_n_pre) <- onmy_nonout_df_pre$Sample_ID
+col_geno_n_pre <- gsub("\\.", "_", colnames(geno_n_pre))
+colnames(geno_n_pre) <- col_geno_n_pre
+
+meta_pre <- onmy_nonout_df_pre[,-c(1:308)]
+
+pre_loci <- colnames(geno_n_pre)
+pre_ind <- rownames(geno_n_pre)
+pre_location <- meta_pre$Location
+#pre_rkm <- meta_pre$rkm
+pre_site <- meta_pre$Sampling_Site
+
+onmy_genind_pre_location <- df2genind(geno_n_pre,
+                         sep="/",
+                         ind.names=pre_ind,
+                         loc.names=pre_loci, 
+                         pop = pre_location,     
+                         ploidy = 2)
+onmy_genind_pre_location
+
+# onmy_genind_pre_site <- df2genind(geno_n_pre,
+#                          sep="/",
+#                          ind.names=pre_ind,
+#                          loc.names=pre_loci, 
+#                          pop = pre_site,      
+#                          ploidy = 2)
+# onmy_genind_pre_site
+
+
+geno_n_post <- onmy_nonout_df_post[,c(1:308)]
+rownames(geno_n_post) <- onmy_nonout_df_post$Sample_ID
+col_geno_n_post <- gsub("\\.", "_", colnames(geno_n_post))
+colnames(geno_n_post) <- col_geno_n_post
+
+meta_post <- onmy_nonout_df_post[,-c(1:308)]
+
+post_loci <- colnames(geno_n_post)
+post_ind <- rownames(geno_n_post)
+post_location <- meta_post$Location
+#post_rkm <- meta_post$rkm
+post_site <- meta_post$Sampling_Site
+
+onmy_genind_post_location <- df2genind(geno_n_post,
+                         sep="/",
+                         ind.names=post_ind,
+                         loc.names=post_loci, 
+                         pop = post_location,
+                         ploidy = 2)
+onmy_genind_post_location
+
+# onmy_genind_post_site <- df2genind(geno_n_post,
+#                          sep="/",
+#                          ind.names=post_ind,
+#                          loc.names=post_loci, 
+#                          pop = post_site,
+#                          ploidy = 2)
+# onmy_genind_post_site
+```
+
+
+## check for deviations from hardy-weinberg equilibrium at the population level 
+### PRE-DAM samples with LOCATION as popultion 
+```{r, message=FALSE}
+set.seed(5)
+onmy_neutral_hw_test <- data.frame(sapply(seppop(onmy_genind_pre_location), 
+                              function(ls) pegas::hw.test(ls, B = 1000)[,3])) # set B=0 to skip permutation test
+
+onmy_neutral_hw_chisq <- t(data.matrix(onmy_neutral_hw_test))
+
+Chisq.fdr <- matrix(p.adjust(onmy_neutral_hw_chisq,method="fdr"), 
+                    nrow=nrow(onmy_neutral_hw_chisq))
+
+# proportion of loci out of HWE 
+alpha=0.05
+Prop.loci.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 2, mean),
+                                   Chisq.fdr=apply(Chisq.fdr<alpha, 2, mean))
+
+# i will remove loci out of HWE in 3 or more of the populations 
+loci_out_of_HWE_pre <- Prop.loci.out.of.HWE %>%
+  filter(Chisq.fdr > 0.5)
+loci_out_of_HWE_pre 
+
+# for each population, the proportion of loci out of HWE
+Prop.pops.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 1, mean), 
+           Chisq.fdr=apply(Chisq.fdr<alpha, 1, mean))
+Prop.pops.out.of.HWE             
+```
+
+
+## check for deviations from hardy-weinberg equilibrium at the population level 
+### POST-DAM samples with LOCATION AS POP
+```{r, message=FALSE}
+set.seed(5)
+onmy_neutral_hw_test <- data.frame(sapply(seppop(onmy_genind_post_location), 
+                              function(ls) pegas::hw.test(ls, B = 1000)[,3])) # set B=0 to skip permutation test 
+
+onmy_neutral_hw_chisq <- t(data.matrix(onmy_neutral_hw_test))
+
+Chisq.fdr <- matrix(p.adjust(onmy_neutral_hw_chisq,method="fdr"), 
+                    nrow=nrow(onmy_neutral_hw_chisq))
+
+# proportion of loci out of HWE 
+alpha=0.05
+Prop.loci.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 2, mean),
+                                   Chisq.fdr=apply(Chisq.fdr<alpha, 2, mean))
+
+# i will remove loci out of HWE in 3 or more of the populations 
+loci_out_of_HWE_post <- Prop.loci.out.of.HWE %>%
+  filter(Chisq.fdr > 0.5)
+loci_out_of_HWE_post
+
+# for each population, the proportion of loci out of HWE
+Prop.pops.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 1, mean), 
+           Chisq.fdr=apply(Chisq.fdr<alpha, 1, mean))
+Prop.pops.out.of.HWE   
+```
+
+filter vct gt to remove the loci out of HWE in 3 or more populations pre and/or post dam removal
+```{r}
+rownames(loci_out_of_HWE_pre)
+rownames(loci_out_of_HWE_post)
+
+## need to convert second "_" back to a "." to remove 
+remove2 <- c("NC_035086.1_30372084",  "NC_035092.1_16334074",  "NC_035092.1_44116456",  "NC_035083.1_57239957", 
+"NC_035080.1_68318464",  "NC_035081.1_40927121",  "NC_035087.1_37031757",  "NC_035091.1_44094440", 
+"NC_035079.1_38336651",  "NW_24", "NC_035081.1_61772669", "NC_035078.1_52384497")
+
+geno_nonoutlier_HWE <- geno_nonoutlier[!rownames(geno_nonoutlier) %in% remove2, ]
+dim(geno_nonoutlier_HWE)
+```
+
+
+## transpose nonoutlier genotypes and loci in HWE and combine with sample metadata 
+```{r}
+tG_nonout <- t(geno_nonoutlier_HWE)
+tG_nonout <- as.data.frame(tG_nonout)
+tG_nonout$Sample_ID <- rownames(tG_nonout)
+
+onmy_nonout_HWE_df <- tG_nonout %>%
+  left_join(onmy_metadata, by = "Sample_ID")
+```
+
+## output joined non-outlier genotypes and loci in HWE with metadata for further analyses using other scripts 
+```{r}
+#write.csv(onmy_nonout_HWE_df, "outputs/onmy_loci4genstr_outflank_hwe.csv")
+```
+
+
+
+look at putative adaptive non-outliers that are in HWE 
+```{r}
+onmy_snp_adapt_nonoutlier <- onmy_snp %>%
+  filter(OutlierFlag != TRUE) %>%
+  filter(Status == "Adaptive")
+
+onmy_snp_adapt_nonoutlier_hwe <- onmy_snp_adapt_nonoutlier[!onmy_snp_adapt_nonoutlier$LocusName %in% remove2, ]
+onmy_snp_adapt_nonoutlier_hwe
+```
+
+there are 57 loci in the GTSeq panel that were indicated as "adaptive" that were not identified as Fst outliers and are in HWE  
+
+```{r}
+onmy_snp_adapt_nonoutlier_hwe %>%
+  group_by(chromosome) %>%
+  summarise(n())
+```
+
+
+join measures of LD with these "adaptive" non-outlier loci to help choose which to retain (max 1 "adaptive" loci per chromosome)
+
+```{r}
+#ld <- read.table("~/Desktop/LG_Proj4/vcftool_analyses/ld.geno.ld", as.is=T, row.names=NULL, header=T)
+#adapt_pos <- onmy_snp_adapt_nonoutlier$Physical_Position
+```
+
+```{r}
+#ld1 <- ld[ld$POS1 %in% adapt_pos,]
+#ld2 <- ld[ld$POS2 %in% adapt_pos,]
+
+#high_ld <- ld1 %>%
+#  bind_rows(ld2) %>%
+#  filter(R.2 > 0.02) %>%
+#  arrange(desc(R.2))
+```
+
+
+in this file i have chosen which "adaptive" snps to keep and which to remove from population structure analyses... this was based on removing all loci with LD>0.02 and to only keep 1 "adaptive" snp per chromosome
+```{r}
+onmy_snp_adapt_nonoutlier_removed <- read.csv("onmy_snp_adapt_outlier_edit.csv") %>%
+  filter(remove == "yes")
+
+onmy_snp_adapt_nonoutlier_removed
+
+onmy_snp_adapt_nonoutlier_keep <- read.csv("onmy_snp_adapt_outlier_edit.csv") %>%
+  filter(remove == "no")
+
+onmy_snp_adapt_nonoutlier_keep 
+```
+
+
+## filter vcf data again to get rid of multiple adapative loci on same chromosome
+```{r}
+remove3 <- onmy_snp_adapt_nonoutlier_removed$LocusName
+
+geno_nonoutlier_HWE_one_adapt <- geno_nonoutlier_HWE[!rownames(geno_nonoutlier_HWE) %in% remove3, ]
+dim(geno_nonoutlier_HWE_one_adapt)
+```
+
+
+## transpose nonoutlier genotypes and combine with sample metadata 
+```{r}
+tG_nonout <- t(geno_nonoutlier_HWE_one_adapt)
+tG_nonout <- as.data.frame(tG_nonout)
+tG_nonout$Sample_ID <- rownames(tG_nonout)
+
+onmy_nonoutlier_HWE_one_adapt <- tG_nonout %>%
   left_join(onmy_metadata, by = "Sample_ID")
 ```
 
 ## output joined non-outlier genotypes with metadata for further analyses using other scripts 
 ```{r}
-#write.csv(onmy_n_df, "outputs/my_nonoutlierloci.csv")
-write.csv(onmy_n_df, "outputs/omy_loci4genstr.csv")
+#write.csv(onmy_nonoutlier_HWE_one_adapt, "outputs/omy_loci4genstr_outflank_hwe_oneadapt.csv")
 ```
 
 
