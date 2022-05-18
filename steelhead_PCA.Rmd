@@ -1,11 +1,11 @@
 ---
-title: "steelhead_PCA_LEA"
+title: "steelhead_PCA_DAPC"
 author: "Kimberly Ledger"
 date: "4/12/2022"
 output: github_document
 ---
 
-# looking at O.mykiss population structure using all non-outlier loci  
+# looking at O.mykiss population structure  
 
 load libraries
 ```{r, message = FALSE}
@@ -13,40 +13,18 @@ library(adegenet) #this package is used for analysis of genetic/genomic data
 library(dplyr) # data manipulation
 library(tidyr) # data manipulation
 library(forcats)
+library(ggplot2)
 ```
 
 
 # Part 1: create genind objects
 
 ```{r}
-onmy_n_df <- read.csv("outputs/omy_loci4genstr.csv")
+#onmy_n_df <- read.csv("outputs/onmy_loci4genstr_outflank_hwe.csv")
+onmy_n_df <- read.csv("outputs/omy_loci4genstr_outflank_hwe_oneadapt.csv")
 ```
 
-## create a genind object for all samples using time/location as population
-```{r}
-geno_n <- onmy_n_df[,c(2:272)]
-rownames(geno_n) <- onmy_n_df$Sample_ID
-col_geno_n <- gsub("\\.", "_", colnames(geno_n))
-colnames(geno_n) <- col_geno_n
-
-meta_n <- onmy_n_df[,-c(1:272)]
-
-loci <- colnames(geno_n)
-ind <- rownames(geno_n)
-location <- meta_n$Location
-time <- meta_n$Time
-tp <- meta_n$Time_Location
-
-onmy_genind_tp <- df2genind(geno_n,
-                         sep="/",
-                         ind.names=ind,
-                         loc.names=loci, 
-                         pop = tp,
-                         ploidy = 2)
-onmy_genind_tp
-```
-
-here i will subset PRE, DURING, and POST dam individuals 
+here i will subset PRE and POST dam individuals 
 ```{r}
 geno_pre <- onmy_n_df %>%
   filter(Time == "Pre") %>%
@@ -59,15 +37,17 @@ geno_post <- onmy_n_df %>%
   arrange(Location, rkm)
 ```
 
-## create genind objects from pre and post dam samples (during excluded because there are few)
-
+## create genind objects from pre and post dam samples
 ```{r}
-geno_n_pre <- geno_pre[,c(2:272)]
+#geno_n_pre <- geno_pre[,c(2:297)]        #for "outputs/onmy_loci4genstr_outflank_hwe.csv" use 297 
+geno_n_pre <- geno_pre[,c(2:265)]        #for "outputs/omy_loci4genstr_outflank_hwe_oneadapt.csv" use 265
+
 rownames(geno_n_pre) <- geno_pre$Sample_ID
 col_geno_n_pre <- gsub("\\.", "_", colnames(geno_n_pre))
 colnames(geno_n_pre) <- col_geno_n_pre
 
-meta_pre <- geno_pre[,-c(1:272)]
+#meta_pre <- geno_pre[,-c(1:297)]
+meta_pre <- geno_pre[,-c(1:265)]
 
 pre_loci <- colnames(geno_n_pre)
 pre_ind <- rownames(geno_n_pre)
@@ -91,12 +71,15 @@ onmy_genind_pre_location
 onmy_genind_pre_site
 
 
-geno_n_post <- geno_post[,c(2:272)]
+#geno_n_post <- geno_post[,c(2:297)]
+geno_n_post <- geno_post[,c(2:265)]
+
 rownames(geno_n_post) <- geno_post$Sample_ID
 col_geno_n_post <- gsub("\\.", "_", colnames(geno_n_post))
 colnames(geno_n_post) <- col_geno_n_post
 
-meta_post <- geno_post[,-c(1:272)]
+#meta_post <- geno_post[,-c(1:297)]
+meta_post <- geno_post[,-c(1:265)]
 
 post_loci <- colnames(geno_n_post)
 post_ind <- rownames(geno_n_post)
@@ -122,189 +105,8 @@ onmy_genind_post_site
 ```
 
 
-# Part 2: Hardy-Weinberg equilibrium 
+# Part 2: Hardy-Weinberg equilibrium  - AS OF 17 May 2022 HWE was checkin in "steeloutliertest.Rmd"
 
-## check for deviations from hardy-weinberg equilibrium at the population level - TIME/LOCATION AS POP
-```{r, message=FALSE}
-onmy_neutral_hw_test <- data.frame(sapply(seppop(onmy_genind_tp), 
-                              function(ls) pegas::hw.test(ls, B = 0)[,3])) #skipping permutation test
-
-onmy_neutral_hw_chisq <- t(data.matrix(onmy_neutral_hw_test))
-
-Chisq.fdr <- matrix(p.adjust(onmy_neutral_hw_chisq,method="fdr"), 
-                    nrow=nrow(onmy_neutral_hw_chisq))
-
-# proportion of loci out of HWE 
-alpha=0.05
-Prop.loci.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 2, mean),
-                                   Chisq.fdr=apply(Chisq.fdr<alpha, 2, mean))
-#Prop.loci.out.of.HWE %>%
-#  filter(Chisq >= 0.5)
-Prop.loci.out.of.HWE %>%
-  filter(Chisq.fdr >= 0.5)
-
-# for each population, the proportion of loci out of HWE
-Prop.pops.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 1, mean), 
-           Chisq.fdr=apply(Chisq.fdr<alpha, 1, mean))
-Prop.pops.out.of.HWE             
-```
-
-**8 loci** consistently out of HWE 
-**no locations** consistently out of HWE 
-
-
-## check for deviations from hardy-weinberg equilibrium at the population level - PRE-DAM samples with LOCATION AS POP
-```{r, message=FALSE}
-onmy_neutral_hw_test <- data.frame(sapply(seppop(onmy_genind_pre_location), 
-                              function(ls) pegas::hw.test(ls, B = 0)[,3])) #skipping permutation test
-
-onmy_neutral_hw_chisq <- t(data.matrix(onmy_neutral_hw_test))
-
-Chisq.fdr <- matrix(p.adjust(onmy_neutral_hw_chisq,method="fdr"), 
-                    nrow=nrow(onmy_neutral_hw_chisq))
-
-# proportion of loci out of HWE 
-alpha=0.05
-Prop.loci.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 2, mean),
-                                   Chisq.fdr=apply(Chisq.fdr<alpha, 2, mean))
-#Prop.loci.out.of.HWE %>%
-#  filter(Chisq >= 0.5)
-Prop.loci.out.of.HWE %>%
-  filter(Chisq.fdr >= 0.5)
-
-# for each population, the proportion of loci out of HWE
-Prop.pops.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 1, mean), 
-           Chisq.fdr=apply(Chisq.fdr<alpha, 1, mean))
-Prop.pops.out.of.HWE             
-```
-
-## check for deviations from hardy-weinberg equilibrium at the population level - POST-DAM samples with LOCATION AS POP
-```{r, message=FALSE}
-onmy_neutral_hw_test <- data.frame(sapply(seppop(onmy_genind_post_location), 
-                              function(ls) pegas::hw.test(ls, B = 0)[,3])) #skipping permutation test
-
-onmy_neutral_hw_chisq <- t(data.matrix(onmy_neutral_hw_test))
-
-Chisq.fdr <- matrix(p.adjust(onmy_neutral_hw_chisq,method="fdr"), 
-                    nrow=nrow(onmy_neutral_hw_chisq))
-
-# proportion of loci out of HWE 
-alpha=0.05
-Prop.loci.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 2, mean),
-                                   Chisq.fdr=apply(Chisq.fdr<alpha, 2, mean))
-#Prop.loci.out.of.HWE %>%
-#  filter(Chisq >= 0.5)
-Prop.loci.out.of.HWE %>%
-  filter(Chisq.fdr >= 0.5)
-
-# for each population, the proportion of loci out of HWE
-Prop.pops.out.of.HWE <- data.frame(Chisq=apply(onmy_neutral_hw_chisq<alpha, 1, mean), 
-           Chisq.fdr=apply(Chisq.fdr<alpha, 1, mean))
-Prop.pops.out.of.HWE             
-```
-
-do we need to filter additional loci??? 
-
-
-# Part 3: assessing population structure 
-
-## start with running PCAs using adegenet package and genind object with all individuals
-
-extract allele frequencies 
-```{r}
-x.onmy <- tab(onmy_genind_tp, freq = T, NA.method = "mean") 
-```
-
-```{r}
-pca.onmy <- dudi.pca(df = x.onmy, center = T, scale = F, scannf = FALSE, nf = 200)
-```
-
-pc1 vs pc2
-```{r}
-s.class(pca.onmy$li, fac=pop(onmy_genind_tp),
-        xax=1, yax=2, col=transp(funky(15),.6),
-        axesel=FALSE, cstar=0, cpoint=3)
-```
-
-pc2 v pc3
-```{r}
-s.class(pca.onmy$li, fac=pop(onmy_genind_tp),
-        xax=2, yax=3, col=transp(funky(15),.6),
-        axesel=FALSE, cstar=0, cpoint=3)
-#add.scatter.eig(pca.onmy$eig[1:50],3,2,3, ratio=.3)
-```
-
-## PCAs using adegenet package and genind object with predam individuals by site 
-
-extract allele frequencies 
-```{r}
-pre.onmy_site <- tab(onmy_genind_pre_site, freq = T, NA.method = "mean") 
-```
-
-```{r}
-pca.onmy.pre_site <- dudi.pca(df = pre.onmy_site, center = T, scale = F, scannf = FALSE, nf = 200)
-```
-
-```{r}
-s.class(pca.onmy.pre_site$li, fac=pop(onmy_genind_pre_site),
-        xax=1, yax=2, col=transp(funky(14),.6),
-        axesel=FALSE, cstar=0, cpoint=3)
-#pca.legend(pca.onmy.pre, groups = pre_site)
-#add.scatter.eig(pca.onmy.pre$eig[1:50],3,1,2, ratio=.3)
-```
-
-## PCAs using adegenet package and genind object with predam individuals by location  
-
-extract allele frequencies 
-```{r}
-pre.onmy_location <- tab(onmy_genind_pre_location, freq = T, NA.method = "mean") 
-```
-
-```{r}
-pca.onmy.pre_location <- dudi.pca(df = pre.onmy_location, center = T, scale = F, scannf = FALSE, nf = 200)
-```
-
-```{r}
-s.class(pca.onmy.pre_location$li, fac=pop(onmy_genind_pre_location),
-        xax=1, yax=2, col=transp(c("blue", "darkgreen", "orange", "red"),.6),
-        axesel=FALSE, cstar=0, cpoint=3)
-```
-
-## PCAs using adegenet package and genind object with postdam individuals by site 
-
-extract allele frequencies 
-```{r}
-post.onmy_site <- tab(onmy_genind_post_site, freq = T, NA.method = "mean") 
-```
-
-```{r}
-pca.onmy.post_site <- dudi.pca(df = post.onmy_site, center = T, scale = F, scannf = FALSE, nf = 200)
-```
-
-```{r}
-s.class(pca.onmy.post_site$li, fac=pop(onmy_genind_post_site),
-        xax=1, yax=2, col=transp(funky(14),.6),
-        axesel=FALSE, cstar=0, cpoint=3)
-#add.scatter.eig(pca.onmy.post$eig[1:50],3,1,2, ratio=.3)
-```
-
-## PCAs using adegenet package and genind object with postdam individuals by location 
-
-extract allele frequencies 
-```{r}
-post.onmy_location <- tab(onmy_genind_post_location, freq = T, NA.method = "mean") 
-```
-
-```{r}
-pca.onmy.post_location <- dudi.pca(df = post.onmy_location, center = T, scale = F, scannf = FALSE, nf = 200)
-```
-
-```{r}
-s.class(pca.onmy.post_location$li, fac=pop(onmy_genind_post_location),
-        xax=1, yax=2, col=transp(c("blue", "darkgreen", "orange", "red"), .6),
-        axesel=FALSE, cstar=0, cpoint=3)
-#add.scatter.eig(pca.onmy.post$eig[1:50],3,1,2, ratio=.3)
-```
 
 # Part 4: convet genind to genlight objects 
 
@@ -312,125 +114,371 @@ s.class(pca.onmy.post_location$li, fac=pop(onmy_genind_post_location),
 #install_github("green-striped-gecko/dartR")
 library(dartR)
 
-genlit_all <- gi2gl(onmy_genind_tp)
-
 genlit_pre_site <- gi2gl(onmy_genind_pre_site)
 genlit_pre_location <- gi2gl(onmy_genind_pre_location)
 genlit_post_site <- gi2gl(onmy_genind_post_site)
 genlit_post_location <- gi2gl(onmy_genind_post_location)
 ```
 
-# consider filtering genlight objects prior to running a PCA or PCoA?  
-
+### consider filtering genlight objects prior to running a PCA or PCoA?  
 prep for pca 
 (a) Filter stringently on call rate, using a threshold of at least 95% loci called.
 (b) Remove individuals for which call rate is exceptionally low, say <80%.
 (c) Impute the remaining missing values on a population‐by‐population basis, where populations can be considered panmictic.
 ```{r}
-genlit_filter <- gl.filter.callrate(genlit_pre_site, method="loc", threshold=0.90)
-genlit_filter <- gl.filter.callrate(genlit_filter, method="ind", threshold=0.80)
-genlit_filter <- gl.impute(genlit_filter, method="random")
-pcoa <- gl.pcoa(genlit_filter)
+#genlit_filter <- gl.filter.callrate(genlit_pre_site, method="loc", threshold=0.90)
+#genlit_filter <- gl.filter.callrate(genlit_filter, method="ind", threshold=0.80)
+#genlit_filter <- gl.impute(genlit_filter, method="random")
+#pcoa <- gl.pcoa(genlit_filter)
 ```
 
-this is for pre-dam samples only 
+
+## PCA using genlight object
+set color palette
 ```{r}
-library(directlabels)
-gl.pcoa.plot(pcoa, genlit_filter, xaxis = 1, yaxis =2, ellipse = TRUE, plevel = 0.9)
+library(viridisLite)
+mycol = viridisLite::viridis(4, alpha = 0.6)
 ```
 
-##PCA using filtered genlight object
-
 ```{r}
-pca <- glPca(genlit_filter, center = T, scale = F, nf = 50)
-s.class(pca$scores, pop(genlit_filter),
-        xax=1, yax=2, col=transp(funky(14),.6),
+pca_pre <- glPca(genlit_pre_location, center = T, scale = F, nf = 50)
+s.class(pca_pre$scores, pop(genlit_pre_location),
+        xax=1, yax=2, col=mycol,
         axesel=FALSE, cstar=0, cpoint=3)
 ```
 
-filtering the genlight object does not seem to make a big difference...  
 
-
-# Part 5: STRUCTURE analyses 
-
-## Clustering with SNMF (similar to ‘STRUCTURE’)
-
-this uses the package LEA
-```{r}
-library('LEA')
-```
-
-
-### convert the genlight object to geno - will work with pre and post dam individuals seperately
 
 ```{r}
-geno_pre <- gl2geno(genlit_pre_location, outfile = "gl_geno_pre", outpath = "~/Desktop/LG_Proj4/Elwha_genetics/geno/")
-geno_post <- gl2geno(genlit_post_location, outfile = "gl_geno_post", outpath = "~/Desktop/LG_Proj4/Elwha_genetics/geno/")
+pca_post <- glPca(genlit_post_location, center = T, scale = F, nf = 50)
+s.class(pca_post$scores, pop(genlit_post_location),
+        xax=1, yax=2, col=mycol,
+        axesel=FALSE, cstar=0, cpoint=3)
 ```
 
 
-## predam STRUCTURE only 
+# Part 5: DAPC
 
-estimate K 
-```{r, message=FALSE}
-snmf2 <- LEA::snmf("~/Desktop/LG_Proj4/Elwha_genetics/geno/gl_geno_pre.geno", K=1:8, ploidy=2, entropy=T, 
-                   alpha=100, project="new")
-par(mfrow=c(1,1))
-plot(snmf2, col="blue4", cex=1.4, pch=19)
-```
+i am following this tutorial: https://adegenet.r-forge.r-project.org/files/tutorial-dapc.pdf
 
-for now i will use K=5
+find clusters
 ```{r}
-K = 5
-pre_snmf_5 <- LEA::snmf("~/Desktop/LG_Proj4/Elwha_genetics/geno/gl_geno_pre.geno", K=K, ploidy=2, entropy=T, alpha=100, project="new")
+grp_pre <- find.clusters(genlit_pre_location, max.n.clust=40, n.pca=100)
 ```
 
-plot ancestral populations - samples are sorted by location and river km 
+check Kstat
 ```{r}
-qmatrix = LEA::Q(pre_snmf_5, K = K)
-
-par(mar=c(4,4,0.5,0.5))
-barplot(t(qmatrix), col=RColorBrewer::brewer.pal(9,"Paired"), 
-        border=NA, space=0, xlab="Individuals", 
-        ylab="Admixture coefficients")
-#Add population labels to the axis:
-#for (i in 1:length(pre_site)){
-#  axis(1, at=median(which(pre_site==pre_site[i])), labels=pre_site[i])}
-#Add population labels to the axis:
-for (i in 1:length(pre_location)){
-  axis(1, at=min(which(pre_location==pre_location[i])), labels=pre_location[i])}
+grp_pre$Kstat
 ```
 
-
-## POSTdam STRUCTURE only 
-
-estimate K 
-```{r, message=FALSE}
-snmf2 <- LEA::snmf("~/Desktop/LG_Proj4/Elwha_genetics/geno/gl_geno_post.geno", K=1:8, ploidy=2, entropy=T, alpha=100, project="new")
-par(mfrow=c(1,1))
-plot(snmf2, col="blue4", cex=1.4, pch=19)
-```
-
-not sure what k to use... 
-for now i will use K=4
+will use K=2 and K=3 since BIC stops decreasing all that much beyond there... 
 ```{r}
-K = 4
-post_snmf_4 <- LEA::snmf("~/Desktop/LG_Proj4/Elwha_genetics/geno/gl_geno_post.geno", K=K, ploidy=2, entropy=T, alpha=100, project="new")
+grp_pre_2 <- find.clusters(genlit_pre_location, max.n.clust=40, n.clust = 2)
+grp_pre_3 <- find.clusters(genlit_pre_location, max.n.clust=40, n.clust = 3)
 ```
 
-plot ancestral populations - samples are sorted by location and river km 
+run dapc
 ```{r}
-qmatrix = LEA::Q(post_snmf_4, K = K)
+dapc_pre_2 <- dapc(genlit_pre_location, grp_pre_2$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_pre_3 <- dapc(genlit_pre_location, grp_pre_3$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+```
 
-par(mar=c(4,4,0.5,0.5))
-barplot(t(qmatrix), col=RColorBrewer::brewer.pal(9,"Paired"), 
-        border=NA, space=0, xlab="Individuals", 
-        ylab="Admixture coefficients")
-#Add population labels to the axis:
-#for (i in 1:length(pre_site)){
-#  axis(1, at=median(which(pre_site==pre_site[i])), labels=pre_site[i])}
-#Add population labels to the axis:
-for (i in 1:length(pre_location)){
-  axis(1, at=min(which(pre_location==pre_location[i])), labels=pre_location[i])}
+dapc output
+```{r}
+dapc_pre_2
+dapc_pre_3
+```
+
+plot DAPC using scatter()
+```{r}
+scatter(dapc_pre_2, col = viridis(2, alpha = 0.6))
+scatter(dapc_pre_3, col = viridis(3, alpha = 0.6))
+```
+
+plot DAPC using ggplot
+```{r}
+dapc_pre_2_scores <- as.data.frame(dapc_pre_2$tab)
+dapc_pre_2_scores$Assigned_Pop <- dapc_pre_2$grp
+dapc_pre_2_scores$Original_Pop <- meta_pre$Location
+
+set.seed(9)
+dapc_p2 <- ggplot(dapc_pre_2_scores, aes(x=PC1, y=PC2, colour=Assigned_Pop)) 
+dapc_p2 <- dapc_p2 + geom_point(size=2, aes(shape = Original_Pop)) 
+dapc_p2 <- dapc_p2 + stat_ellipse(level = 0.95, size = 1)
+dapc_p2 <- dapc_p2 + scale_color_manual(values = viridis(3)) 
+dapc_p2 <- dapc_p2 + geom_hline(yintercept = 0) 
+dapc_p2 <- dapc_p2 + geom_vline(xintercept = 0) 
+dapc_p2 <- dapc_p2 + theme_bw()
+
+dapc_p2
+```
+
+plot DAPC using ggplot
+```{r}
+dapc_pre_3_scores <- as.data.frame(dapc_pre_3$tab)
+dapc_pre_3_scores$Assigned_Pop <- dapc_pre_3$grp
+dapc_pre_3_scores$Original_Pop <- meta_pre$Location
+
+set.seed(9)
+dapc_p3 <- ggplot(dapc_pre_3_scores, aes(x=PC1, y=PC2, colour=Assigned_Pop)) 
+dapc_p3 <- dapc_p3 + geom_point(size=2, aes(shape = Original_Pop)) 
+dapc_p3 <- dapc_p3 + stat_ellipse(level = 0.95, size = 1)
+dapc_p3 <- dapc_p3 + scale_color_manual(values = viridis(3)) 
+dapc_p3 <- dapc_p3 + geom_hline(yintercept = 0) 
+dapc_p3 <- dapc_p3 + geom_vline(xintercept = 0) 
+dapc_p3 <- dapc_p3 + theme_bw()
+dapc_p3
+```
+
+
+
+
+
+which loci have the greatest contribution? 
+```{r}
+set.seed(4)
+loadingplot(dapc_pre_2$var.contr, axis=1,
+                       thres=.07, lab.jitter=1)
+loadingplot(dapc_pre_3$var.contr, axis=1,
+                       thres=.07, lab.jitter=1)
+loadingplot(dapc_pre_3$var.contr, axis=2,
+                       thres=.07, lab.jitter=1)
+```
+
+
+look at loci with >0.05 contribution to pc axis
+
+```{r}
+data.frame(dapc_pre_3$var.contr) %>%
+  filter(LD2 > 0.05)
+```
+```{r}
+pre_loci[146]
+```
+
+## this is Omy_RAD3209-10 on omy 18 (Adaptive. Basin-wide, top-outlier)
+
+
+
+```{r}
+#summary(dapc_pre_2)
+#summary(dapc_pre_3)
+```
+
+
+genotype compostion plot  - individuals are ordered from BD to AD 
+```{r}
+compoplot(dapc_pre_2, posi="bottomright",
+          txt.leg=paste("Cluster", 1:2), xlab="individuals", col=viridis(2))
+compoplot(dapc_pre_3, posi="bottomright",
+          txt.leg=paste("Cluster", 1:3), xlab="individuals", col=viridis(3))
+```
+
+
+make easier to interpret DAPC plot using ggplot
+```{r}
+dapc.results <- as.data.frame(dapc_pre_2$posterior)
+dapc.results$pop <- meta_pre$Location
+dapc.results$indNames <- rownames(dapc.results)
+dapc.results <- pivot_longer(dapc.results, -c(pop, indNames))  #pivot table to be able to use ggplot 
+```
+
+rename columns and plot
+```{r}
+colnames(dapc.results) <- c("Original_Pop","Sample","Assigned_Pop","Posterior_membership_probability")
+
+p2 <- ggplot(dapc.results, aes(x=Sample, y=Posterior_membership_probability, fill=Assigned_Pop))
+p2 <- p2 + geom_bar(stat='identity') 
+p2 <- p2 + scale_fill_manual(values = viridis(3)) 
+p2 <- p2 + facet_grid(~Original_Pop, scales = "free")
+p2 <- p2 + theme(axis.text.x = element_blank())
+p2
+```
+
+make easier to interpret DAPC plot using ggplot
+```{r}
+dapc.results <- as.data.frame(dapc_pre_3$posterior)
+dapc.results$pop <- meta_pre$Location
+dapc.results$indNames <- rownames(dapc.results)
+dapc.results <- pivot_longer(dapc.results, -c(pop, indNames))  #pivot table to be able to use ggplot 
+```
+
+
+rename columns and plot
+```{r}
+colnames(dapc.results) <- c("Original_Pop","Sample","Assigned_Pop","Posterior_membership_probability")
+
+p3 <- ggplot(dapc.results, aes(x=Sample, y=Posterior_membership_probability, fill=Assigned_Pop))
+p3 <- p3 + geom_bar(stat='identity') 
+p3 <- p3 + scale_fill_manual(values = viridis(3)) 
+p3 <- p3 + facet_grid(~Original_Pop, scales = "free")
+p3 <- p3 + theme(axis.text.x = element_blank())
+p3
+```
+
+
+make combined figure for predam individuals... 
+```{r}
+library(cowplot)
+
+pre_plot <- plot_grid(dapc_p2, p2, dapc_p3, p3, labels = "AUTO", ncol =2)
+pre_plot
+
+#ggsave2("outputs/pre_plot.png", width = 14, height = 8)
+```
+
+
+
+
+# Now analyses post-removal dam individuals 
+
+find clusters
+```{r}
+grp_post <- find.clusters(genlit_post_location, max.n.clust=40, n.pca=100)
+```
+
+check Kstat
+```{r}
+grp_post$Kstat
+```
+
+
+will use K=2 to K=5 since BIC stops decreasing all that much beyond there... 
+```{r}
+grp_post_2 <- find.clusters(genlit_post_location, max.n.clust=40, n.clust = 2)
+grp_post_3 <- find.clusters(genlit_post_location, max.n.clust=40, n.clust = 3)
+grp_post_4 <- find.clusters(genlit_post_location, max.n.clust=40, n.clust = 4)
+grp_post_5 <- find.clusters(genlit_post_location, max.n.clust=40, n.clust = 5)
+```
+
+run dapc
+```{r}
+dapc_post_2 <- dapc(genlit_post_location, grp_post_2$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_post_3 <- dapc(genlit_post_location, grp_post_3$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_post_4 <- dapc(genlit_post_location, grp_post_4$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_post_5 <- dapc(genlit_post_location, grp_post_5$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+```
+
+
+dapc outputs
+```{r}
+dapc_post_2
+dapc_post_3
+dapc_post_4
+dapc_post_5
+```
+
+
+plot DAPC using scatter()
+```{r}
+scatter(dapc_post_2, col = viridis(2, alpha = 0.6))
+scatter(dapc_post_3, col = viridis(3, alpha = 0.6))
+scatter(dapc_post_4, col = viridis(4, alpha = 0.6))
+scatter(dapc_post_5, col = viridis(5, alpha = 0.6))
+```
+
+plot DAPC using ggplot
+```{r}
+dapc_post_3_scores <- as.data.frame(dapc_post_3$tab)
+dapc_post_3_scores$Assigned_Pop <- dapc_post_3$grp
+dapc_post_3_scores$Original_Pop <- meta_post$Location
+
+set.seed(9)
+dapc_d3 <- ggplot(dapc_post_3_scores, aes(x=PC1, y=PC2, colour=Assigned_Pop)) 
+dapc_d3 <- dapc_d3 + geom_point(size=2, aes(shape = Original_Pop)) 
+dapc_d3 <- dapc_d3 + stat_ellipse(level = 0.95, size = 1)
+dapc_d3 <- dapc_d3 + scale_color_manual(values = viridis(4)) 
+dapc_d3 <- dapc_d3 + geom_hline(yintercept = 0) 
+dapc_d3 <- dapc_d3 + geom_vline(xintercept = 0) 
+dapc_d3 <- dapc_d3 + theme_bw()
+dapc_d3
+```
+
+plot DAPC using ggplot
+```{r}
+dapc_post_4_scores <- as.data.frame(dapc_post_4$tab)
+dapc_post_4_scores$Assigned_Pop <- dapc_post_4$grp
+dapc_post_4_scores$Original_Pop <- meta_post$Location
+
+set.seed(9)
+dapc_d4 <- ggplot(dapc_post_4_scores, aes(x=PC1, y=PC2, colour=Assigned_Pop)) 
+dapc_d4 <- dapc_d4 + geom_point(size=2, aes(shape = Original_Pop)) 
+dapc_d4 <- dapc_d4 + stat_ellipse(level = 0.95, size = 1)
+dapc_d4 <- dapc_d4 + scale_color_manual(values = viridis(4)) 
+dapc_d4 <- dapc_d4 + geom_hline(yintercept = 0) 
+dapc_d4 <- dapc_d4 + geom_vline(xintercept = 0) 
+dapc_d4 <- dapc_d4 + theme_bw()
+dapc_d4
+```
+
+
+
+genotype compostion plot for 2 to 5 clusters 
+```{r}
+compoplot(dapc_post_2, posi="bottomright",
+          txt.leg=paste("Cluster", 1:2), xlab="individuals", col=viridis(2))
+
+compoplot(dapc_post_3, posi="bottomright",
+          txt.leg=paste("Cluster", 1:3), xlab="individuals", col=viridis(3))
+
+compoplot(dapc_post_4, posi="bottomright",
+          txt.leg=paste("Cluster", 1:4), xlab="individuals", col=viridis(4))
+
+compoplot(dapc_post_5, posi="bottomright",
+          txt.leg=paste("Cluster", 1:5), xlab="individuals", col=viridis(5))
+```
+
+make easier to interpret membership probability plot using ggplot
+```{r}
+dapc.results.d3 <- as.data.frame(dapc_post_3$posterior)
+dapc.results.d3$pop <- meta_post$Location
+dapc.results.d3$indNames <- rownames(dapc.results.d3)
+dapc.results.d3  <- pivot_longer(dapc.results.d3, -c(pop, indNames))  #pivot table to be able to use ggplot 
+```
+
+
+rename columns and plot
+```{r}
+colnames(dapc.results.d3) <- c("Original_Pop","Sample","Assigned_Pop","Posterior_membership_probability")
+
+d3 <- ggplot(dapc.results.d3, aes(x=Sample, y=Posterior_membership_probability, fill=Assigned_Pop))
+d3 <- d3 + geom_bar(stat='identity') 
+d3 <- d3 + scale_fill_manual(values = viridis(4)) 
+d3 <- d3 + facet_grid(~Original_Pop, scales = "free")
+d3 <- d3 + theme(axis.text.x = element_blank())
+d3
+```
+
+
+
+make easier to interpret membership probability plot using ggplot
+```{r}
+dapc.results.d4 <- as.data.frame(dapc_post_4$posterior)
+dapc.results.d4$pop <- meta_post$Location
+dapc.results.d4$indNames <- rownames(dapc.results.d4)
+dapc.results.d4  <- pivot_longer(dapc.results.d4, -c(pop, indNames))  #pivot table to be able to use ggplot 
+```
+
+
+rename columns and plot
+```{r}
+colnames(dapc.results.d4) <- c("Original_Pop","Sample","Assigned_Pop","Posterior_membership_probability")
+
+d4 <- ggplot(dapc.results.d4, aes(x=Sample, y=Posterior_membership_probability, fill=Assigned_Pop))
+d4 <- d4 + geom_bar(stat='identity') 
+d4 <- d4 + scale_fill_manual(values = viridis(4)) 
+d4 <- d4 + facet_grid(~Original_Pop, scales = "free")
+d4 <- d4 + theme(axis.text.x = element_blank())
+d4
+```
+
+make combined figure for post dam samples ... 
+```{r}
+library(cowplot)
+
+post_plot <- plot_grid(dapc_d3, d3, dapc_d4, d4, labels = "AUTO", ncol =2)
+post_plot
+
+#ggsave2("outputs/post_plot.png", width = 14, height = 8)
 ```
 
