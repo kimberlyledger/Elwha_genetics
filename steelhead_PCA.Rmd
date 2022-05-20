@@ -39,15 +39,15 @@ geno_post <- onmy_n_df %>%
 
 ## create genind objects from pre and post dam samples
 ```{r}
-#geno_n_pre <- geno_pre[,c(2:297)]        #for "outputs/onmy_loci4genstr_outflank_hwe.csv" use 297 
-geno_n_pre <- geno_pre[,c(2:265)]        #for "outputs/omy_loci4genstr_outflank_hwe_oneadapt.csv" use 265
+#geno_n_pre <- geno_pre[,c(2:296)]        #for "outputs/onmy_loci4genstr_outflank_hwe.csv" use 296 
+geno_n_pre <- geno_pre[,c(2:264)]        #for "outputs/omy_loci4genstr_outflank_hwe_oneadapt.csv" use 264
 
 rownames(geno_n_pre) <- geno_pre$Sample_ID
 col_geno_n_pre <- gsub("\\.", "_", colnames(geno_n_pre))
 colnames(geno_n_pre) <- col_geno_n_pre
 
 #meta_pre <- geno_pre[,-c(1:297)]
-meta_pre <- geno_pre[,-c(1:265)]
+meta_pre <- geno_pre[,-c(1:264)]
 
 pre_loci <- colnames(geno_n_pre)
 pre_ind <- rownames(geno_n_pre)
@@ -72,14 +72,14 @@ onmy_genind_pre_site
 
 
 #geno_n_post <- geno_post[,c(2:297)]
-geno_n_post <- geno_post[,c(2:265)]
+geno_n_post <- geno_post[,c(2:264)]
 
 rownames(geno_n_post) <- geno_post$Sample_ID
 col_geno_n_post <- gsub("\\.", "_", colnames(geno_n_post))
 colnames(geno_n_post) <- col_geno_n_post
 
 #meta_post <- geno_post[,-c(1:297)]
-meta_post <- geno_post[,-c(1:265)]
+meta_post <- geno_post[,-c(1:264)]
 
 post_loci <- colnames(geno_n_post)
 post_ind <- rownames(geno_n_post)
@@ -253,7 +253,7 @@ data.frame(dapc_pre_3$var.contr) %>%
   filter(LD2 > 0.05)
 ```
 ```{r}
-pre_loci[146]
+#pre_loci[146]
 ```
 
 ## this is Omy_RAD3209-10 on omy 18 (Adaptive. Basin-wide, top-outlier)

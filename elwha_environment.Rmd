@@ -138,7 +138,7 @@ points(sites_vect, col = as.factor(Species))
 
 read in TerrainWorks
 ```{r}
-tw <- vect("~/Desktop/LG_Proj4/TerrainWorks_Dung_Elwha_Corrected/Terrainworks_Dung_Elwha.shp")
+tw <- terra::vect("~/Desktop/LG_Proj4/TerrainWorks_Dung_Elwha_Corrected/Terrainworks_Dung_Elwha.shp")
 tw
 ```
 
@@ -265,8 +265,14 @@ sites_nw <- terra::project(sites_vect, crs(nw_lines))
 
 spp_col <- as.factor(Species)
 
+sites_nw_onmy <- sites_nw[spp_col == "Steelhd_Rainbow"]
+sites_nw_chin <- sites_nw[spp_col == "Chinook"]
+
 plot(nw_crop)
-points(sites_nw, col = c("#E69F00","#0072B2")[as.numeric(spp_col)])
+points(sites_nw_onmy)
+
+plot(nw_crop)
+points(sites_nw_chin)
 ```
 
 

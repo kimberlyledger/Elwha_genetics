@@ -52,14 +52,14 @@ head(geno[,1:10])
 
 ## check vcf file for missing data 
 ```{r}
-myMiss_loci <- apply(geno, MARGIN = 1, function(x){ sum(is.na(x)) })
-myMiss_loci <- myMiss_loci/nrow(geno)
+myMiss_loci <- apply(geno, MARGIN = 1, function(x){ sum(is.na(x)) })  #MARGIN = 1 refers to rows (loci)
+myMiss_loci <- myMiss_loci/ncol(geno)
 
 barplot(myMiss_loci, main = "Loci")
 title(ylab = "Missingness (%)")
 
-myMiss_sample <- apply(geno, MARGIN = 2, function(x){ sum(is.na(x)) })
-myMiss_sample <- myMiss_sample/ncol(geno)
+myMiss_sample <- apply(geno, MARGIN = 2, function(x){ sum(is.na(x)) })  #MARGIN = 2 refers to columns (samples)
+myMiss_sample <- myMiss_sample/nrow(geno)
 
 barplot(myMiss_sample, main = "Samples")
 title(ylab = "Missingness (%)")
@@ -79,7 +79,7 @@ samples <- colnames(geno_filtered)
 snp <- rownames(geno_filtered)
 ```
 
-no samples have >20% missing data so filtering does not change the sample count... we have 1468 samples... 
+after filter, we have 1324 samples... 
 
 
 Notice that as our genotypes look like 0/0, 0/1, and 1/1. But OutFLANK wants them to be 0, 1, or 2. The code below fixes this problem:
@@ -225,7 +225,14 @@ outlier_table_pre <- P1_pre %>%
 head(outlier_table_pre)
 ```
 
-NO OUTLIERS IN PRE DAM DATASET... 
+ONE OUTLIERS IN PRE DAM DATASET... 
+
+Now we can make a manhattan plot! We can even plot the outliers in a different color:
+```{r}
+P1_pre$num <- c(1:334)
+plot(P1_pre$num,P1_pre$FST,xlab="Position",ylab="FST",col=rgb(0,0,0,alpha=0.1))
+points(P1_pre$num[outliers_pre],P1_pre$FST[outliers_pre],col="magenta")
+```
 
 
 ## post dam samples 
@@ -265,7 +272,7 @@ plot(fst_post$He, fst_post$FSTNoCorr, pch=20, col="grey")
 thre is one large Fst value associated with loci of low heterozygosity 
 
 ```{r}
-hist(fst_post$FSTNoCorr, breaks=seq(0,0.8, by=0.001))
+hist(fst_post$FSTNoCorr, breaks=seq(0,1.0, by=0.001))
 hist(fst_post$FSTNoCorr[fst_post$He>0.1], breaks=seq(0,0.8, by=0.001))
 ```
 
@@ -334,21 +341,32 @@ onmy_locus_join <- onmy_snp_coord %>%
 
 join outlier info to metadata for only the loci included in the vcf
 ```{r}
-onmy_snp <- onmy_locus_join %>%
+onmy_snp_pre <- onmy_locus_join %>%
+  rename(LocusName = SNP) %>%
+  right_join(P1_pre)
+
+onmy_snp_post <- onmy_locus_join %>%
   rename(LocusName = SNP) %>%
   right_join(P1_post)
 ```
 
 filter for only outliers 
 ```{r}
-onmy_snp_outliers <- onmy_snp %>%
+onmy_snp_pre_outliers <- onmy_snp_pre %>%
   filter(OutlierFlag == TRUE)
+onmy_snp_pre_outliers
+
+onmy_snp_post_outliers <- onmy_snp_post %>%
+  filter(OutlierFlag == TRUE)
+onmy_snp_post_outliers
+
+onmy_snp_outliers <- rbind(onmy_snp_pre_outliers, onmy_snp_post_outliers)
 onmy_snp_outliers
 
 #write.csv(onmy_snp_outliers, "outputs/fst_outlier_loci_post_onmy.csv")
 ```
 
-there are now 27 rows because the SNP NC_035104.1_11667915 has duplicate loci metadata.  
+there are now 28 rows because the SNP NC_035104.1_11667915 has duplicate loci metadata.  
 
 
 filter vct gt to remove the outlier loci 
@@ -380,12 +398,12 @@ onmy_nonout_df_pre <- onmy_nonout_df %>%
 onmy_nonout_df_post <- onmy_nonout_df %>%
   filter(Time == "Post")
 
-geno_n_pre <- onmy_nonout_df_pre[,c(1:308)]
+geno_n_pre <- onmy_nonout_df_pre[,c(1:307)]
 rownames(geno_n_pre) <- onmy_nonout_df_pre$Sample_ID
 col_geno_n_pre <- gsub("\\.", "_", colnames(geno_n_pre))
 colnames(geno_n_pre) <- col_geno_n_pre
 
-meta_pre <- onmy_nonout_df_pre[,-c(1:308)]
+meta_pre <- onmy_nonout_df_pre[,-c(1:307)]
 
 pre_loci <- colnames(geno_n_pre)
 pre_ind <- rownames(geno_n_pre)
@@ -410,12 +428,12 @@ onmy_genind_pre_location
 # onmy_genind_pre_site
 
 
-geno_n_post <- onmy_nonout_df_post[,c(1:308)]
+geno_n_post <- onmy_nonout_df_post[,c(1:307)]
 rownames(geno_n_post) <- onmy_nonout_df_post$Sample_ID
 col_geno_n_post <- gsub("\\.", "_", colnames(geno_n_post))
 colnames(geno_n_post) <- col_geno_n_post
 
-meta_post <- onmy_nonout_df_post[,-c(1:308)]
+meta_post <- onmy_nonout_df_post[,-c(1:307)]
 
 post_loci <- colnames(geno_n_post)
 post_ind <- rownames(geno_n_post)
@@ -504,7 +522,7 @@ rownames(loci_out_of_HWE_pre)
 rownames(loci_out_of_HWE_post)
 
 ## need to convert second "_" back to a "." to remove 
-remove2 <- c("NC_035086.1_30372084",  "NC_035092.1_16334074",  "NC_035092.1_44116456",  "NC_035083.1_57239957", 
+remove2 <- c("NC_035086.1_30372084",  "NC_035092.1_16334074",  "NC_035092.1_44116456", 
 "NC_035080.1_68318464",  "NC_035081.1_40927121",  "NC_035087.1_37031757",  "NC_035091.1_44094440", 
 "NC_035079.1_38336651",  "NW_24", "NC_035081.1_61772669", "NC_035078.1_52384497")
 
@@ -532,7 +550,7 @@ onmy_nonout_HWE_df <- tG_nonout %>%
 
 look at putative adaptive non-outliers that are in HWE 
 ```{r}
-onmy_snp_adapt_nonoutlier <- onmy_snp %>%
+onmy_snp_adapt_nonoutlier <- onmy_snp_outliers %>%
   filter(OutlierFlag != TRUE) %>%
   filter(Status == "Adaptive")
 

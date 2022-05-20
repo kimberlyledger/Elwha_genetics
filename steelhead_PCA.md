@@ -39,15 +39,15 @@ geno_post <- onmy_n_df %>%
 ## create genind objects from pre and post dam samples
 
 ``` r
-#geno_n_pre <- geno_pre[,c(2:297)]        #for "outputs/onmy_loci4genstr_outflank_hwe.csv" use 297 
-geno_n_pre <- geno_pre[,c(2:265)]        #for "outputs/omy_loci4genstr_outflank_hwe_oneadapt.csv" use 265
+#geno_n_pre <- geno_pre[,c(2:296)]        #for "outputs/onmy_loci4genstr_outflank_hwe.csv" use 296 
+geno_n_pre <- geno_pre[,c(2:264)]        #for "outputs/omy_loci4genstr_outflank_hwe_oneadapt.csv" use 264
 
 rownames(geno_n_pre) <- geno_pre$Sample_ID
 col_geno_n_pre <- gsub("\\.", "_", colnames(geno_n_pre))
 colnames(geno_n_pre) <- col_geno_n_pre
 
 #meta_pre <- geno_pre[,-c(1:297)]
-meta_pre <- geno_pre[,-c(1:265)]
+meta_pre <- geno_pre[,-c(1:264)]
 
 pre_loci <- colnames(geno_n_pre)
 pre_ind <- rownames(geno_n_pre)
@@ -72,12 +72,12 @@ onmy_genind_pre_location
 
     ## /// GENIND OBJECT /////////
     ## 
-    ##  // 531 individuals; 264 loci; 522 alleles; size: 1.3 Mb
+    ##  // 459 individuals; 263 loci; 519 alleles; size: 1.1 Mb
     ## 
     ##  // Basic content
-    ##    @tab:  531 x 522 matrix of allele counts
+    ##    @tab:  459 x 519 matrix of allele counts
     ##    @loc.n.all: number of alleles per locus (range: 1-2)
-    ##    @loc.fac: locus factor for the 522 columns of @tab
+    ##    @loc.fac: locus factor for the 519 columns of @tab
     ##    @all.names: list of allele names for each locus
     ##    @ploidy: ploidy of each individual  (range: 2-2)
     ##    @type:  codom
@@ -85,7 +85,7 @@ onmy_genind_pre_location
     ##     pop = pre_location, ploidy = 2)
     ## 
     ##  // Optional content
-    ##    @pop: population of each individual (group size range: 81-166)
+    ##    @pop: population of each individual (group size range: 69-160)
 
 ``` r
 onmy_genind_pre_site
@@ -93,12 +93,12 @@ onmy_genind_pre_site
 
     ## /// GENIND OBJECT /////////
     ## 
-    ##  // 531 individuals; 264 loci; 522 alleles; size: 1.3 Mb
+    ##  // 459 individuals; 263 loci; 519 alleles; size: 1.1 Mb
     ## 
     ##  // Basic content
-    ##    @tab:  531 x 522 matrix of allele counts
+    ##    @tab:  459 x 519 matrix of allele counts
     ##    @loc.n.all: number of alleles per locus (range: 1-2)
-    ##    @loc.fac: locus factor for the 522 columns of @tab
+    ##    @loc.fac: locus factor for the 519 columns of @tab
     ##    @all.names: list of allele names for each locus
     ##    @ploidy: ploidy of each individual  (range: 2-2)
     ##    @type:  codom
@@ -106,18 +106,18 @@ onmy_genind_pre_site
     ##     pop = pre_site, ploidy = 2)
     ## 
     ##  // Optional content
-    ##    @pop: population of each individual (group size range: 1-128)
+    ##    @pop: population of each individual (group size range: 1-81)
 
 ``` r
 #geno_n_post <- geno_post[,c(2:297)]
-geno_n_post <- geno_post[,c(2:265)]
+geno_n_post <- geno_post[,c(2:264)]
 
 rownames(geno_n_post) <- geno_post$Sample_ID
 col_geno_n_post <- gsub("\\.", "_", colnames(geno_n_post))
 colnames(geno_n_post) <- col_geno_n_post
 
 #meta_post <- geno_post[,-c(1:297)]
-meta_post <- geno_post[,-c(1:265)]
+meta_post <- geno_post[,-c(1:264)]
 
 post_loci <- colnames(geno_n_post)
 post_ind <- rownames(geno_n_post)
@@ -143,12 +143,12 @@ onmy_genind_post_location
 
     ## /// GENIND OBJECT /////////
     ## 
-    ##  // 934 individuals; 264 loci; 525 alleles; size: 2.1 Mb
+    ##  // 863 individuals; 263 loci; 522 alleles; size: 2 Mb
     ## 
     ##  // Basic content
-    ##    @tab:  934 x 525 matrix of allele counts
+    ##    @tab:  863 x 522 matrix of allele counts
     ##    @loc.n.all: number of alleles per locus (range: 1-2)
-    ##    @loc.fac: locus factor for the 525 columns of @tab
+    ##    @loc.fac: locus factor for the 522 columns of @tab
     ##    @all.names: list of allele names for each locus
     ##    @ploidy: ploidy of each individual  (range: 2-2)
     ##    @type:  codom
@@ -156,7 +156,7 @@ onmy_genind_post_location
     ##     pop = post_location, ploidy = 2)
     ## 
     ##  // Optional content
-    ##    @pop: population of each individual (group size range: 25-445)
+    ##    @pop: population of each individual (group size range: 22-396)
 
 ``` r
 onmy_genind_post_site
@@ -164,12 +164,12 @@ onmy_genind_post_site
 
     ## /// GENIND OBJECT /////////
     ## 
-    ##  // 934 individuals; 264 loci; 525 alleles; size: 2.1 Mb
+    ##  // 863 individuals; 263 loci; 522 alleles; size: 2 Mb
     ## 
     ##  // Basic content
-    ##    @tab:  934 x 525 matrix of allele counts
+    ##    @tab:  863 x 522 matrix of allele counts
     ##    @loc.n.all: number of alleles per locus (range: 1-2)
-    ##    @loc.fac: locus factor for the 525 columns of @tab
+    ##    @loc.fac: locus factor for the 522 columns of @tab
     ##    @all.names: list of allele names for each locus
     ##    @ploidy: ploidy of each individual  (range: 2-2)
     ##    @type:  codom
@@ -177,7 +177,7 @@ onmy_genind_post_site
     ##     pop = post_site, ploidy = 2)
     ## 
     ##  // Optional content
-    ##    @pop: population of each individual (group size range: 1-280)
+    ##    @pop: population of each individual (group size range: 1-252)
 
 # Part 2: Hardy-Weinberg equilibrium - AS OF 17 May 2022 HWE was checkin in “steeloutliertest.Rmd”
 
@@ -274,7 +274,7 @@ genlit_post_location <- gi2gl(onmy_genind_post_location)
     ## Completed: gl.compliance.check 
     ## Completed: gi2gl
 
-# consider filtering genlight objects prior to running a PCA or PCoA?
+### consider filtering genlight objects prior to running a PCA or PCoA?
 
 prep for pca (a) Filter stringently on call rate, using a threshold of
 at least 95% loci called. (b) Remove individuals for which call rate is
@@ -289,14 +289,9 @@ panmictic.
 #pcoa <- gl.pcoa(genlit_filter)
 ```
 
-this is for pre-dam samples only
+## PCA using genlight object
 
-``` r
-#library(directlabels)
-#gl.pcoa.plot(pcoa, genlit_filter, xaxis = 1, yaxis =2, ellipse = TRUE, plevel = 0.9)
-```
-
-##PCA using filtered genlight object set color palette
+set color palette
 
 ``` r
 library(viridisLite)
@@ -310,7 +305,7 @@ s.class(pca_pre$scores, pop(genlit_pre_location),
         axesel=FALSE, cstar=0, cpoint=3)
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 ``` r
 pca_post <- glPca(genlit_post_location, center = T, scale = F, nf = 50)
@@ -319,7 +314,7 @@ s.class(pca_post$scores, pop(genlit_post_location),
         axesel=FALSE, cstar=0, cpoint=3)
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 # Part 5: DAPC
 
@@ -332,7 +327,7 @@ find clusters
 grp_pre <- find.clusters(genlit_pre_location, max.n.clust=40, n.pca=100)
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
     ## Choose the number of clusters (>=2):
 
@@ -343,15 +338,15 @@ grp_pre$Kstat
 ```
 
     ##      K=1      K=2      K=3      K=4      K=5      K=6      K=7      K=8 
-    ## 1427.851 1413.072 1410.153 1409.635 1409.718 1410.957 1412.912 1413.764 
+    ## 1268.836 1255.761 1253.636 1253.451 1253.849 1255.196 1256.919 1258.967 
     ##      K=9     K=10     K=11     K=12     K=13     K=14     K=15     K=16 
-    ## 1415.700 1418.400 1420.697 1423.682 1427.035 1428.476 1430.436 1435.951 
+    ## 1260.198 1262.397 1264.765 1267.514 1270.772 1274.079 1278.145 1279.757 
     ##     K=17     K=18     K=19     K=20     K=21     K=22     K=23     K=24 
-    ## 1436.980 1441.007 1442.865 1447.353 1450.575 1454.071 1457.614 1460.196 
+    ## 1283.465 1285.662 1289.981 1292.478 1296.409 1299.867 1302.699 1306.199 
     ##     K=25     K=26     K=27     K=28     K=29     K=30     K=31     K=32 
-    ## 1464.500 1467.343 1471.504 1474.434 1478.670 1482.271 1486.044 1488.451 
+    ## 1309.909 1314.204 1316.159 1320.969 1324.564 1327.456 1331.542 1335.026 
     ##     K=33     K=34     K=35     K=36     K=37     K=38     K=39     K=40 
-    ## 1492.445 1497.222 1500.135 1502.794 1507.434 1512.342 1513.836 1518.069
+    ## 1339.407 1342.292 1346.190 1349.904 1353.513 1357.273 1360.650 1364.948
 
 will use K=2 and K=3 since BIC stops decreasing all that much beyond
 there…
@@ -366,7 +361,7 @@ grp_pre_2 <- find.clusters(genlit_pre_location, max.n.clust=40, n.clust = 2)
 grp_pre_3 <- find.clusters(genlit_pre_location, max.n.clust=40, n.clust = 3)
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
     ## Choose the number PCs to retain (>=1):
 
@@ -392,26 +387,26 @@ dapc_pre_2
     ## 
     ## $n.pca: 40 first PCs of PCA used
     ## $n.da: 1 discriminant functions saved
-    ## $var (proportion of conserved variance): 0.453
+    ## $var (proportion of conserved variance): 0.467
     ## 
-    ## $eig (eigenvalues): 2922  vector    length content                   
+    ## $eig (eigenvalues): 2981  vector    length content                   
     ## 1 $eig      1      eigenvalues               
-    ## 2 $grp      531    prior group assignment    
+    ## 2 $grp      459    prior group assignment    
     ## 3 $prior    2      prior group probabilities 
-    ## 4 $assign   531    posterior group assignment
-    ## 5 $pca.cent 264    centring vector of PCA    
-    ## 6 $pca.norm 264    scaling vector of PCA     
-    ## 7 $pca.eig  258    eigenvalues of PCA        
+    ## 4 $assign   459    posterior group assignment
+    ## 5 $pca.cent 263    centring vector of PCA    
+    ## 6 $pca.norm 263    scaling vector of PCA     
+    ## 7 $pca.eig  256    eigenvalues of PCA        
     ## 
     ##   data.frame    nrow ncol content                                          
-    ## 1 $tab          531  40   retained PCs of PCA                              
+    ## 1 $tab          459  40   retained PCs of PCA                              
     ## 2 $means        2    40   group means                                      
     ## 3 $loadings     40   1    loadings of variables                            
-    ## 4 $ind.coord    531  1    coordinates of individuals (principal components)
+    ## 4 $ind.coord    459  1    coordinates of individuals (principal components)
     ## 5 $grp.coord    2    1    coordinates of groups                            
-    ## 6 $posterior    531  2    posterior membership probabilities               
-    ## 7 $pca.loadings 264  40   PCA loadings of original variables               
-    ## 8 $var.contr    264  1    contribution of original variables
+    ## 6 $posterior    459  2    posterior membership probabilities               
+    ## 7 $pca.loadings 263  40   PCA loadings of original variables               
+    ## 8 $var.contr    263  1    contribution of original variables
 
 ``` r
 dapc_pre_3
@@ -426,26 +421,26 @@ dapc_pre_3
     ## 
     ## $n.pca: 40 first PCs of PCA used
     ## $n.da: 2 discriminant functions saved
-    ## $var (proportion of conserved variance): 0.453
+    ## $var (proportion of conserved variance): 0.467
     ## 
-    ## $eig (eigenvalues): 1540 588.1  vector    length content                   
+    ## $eig (eigenvalues): 1559 553.6  vector    length content                   
     ## 1 $eig      2      eigenvalues               
-    ## 2 $grp      531    prior group assignment    
+    ## 2 $grp      459    prior group assignment    
     ## 3 $prior    3      prior group probabilities 
-    ## 4 $assign   531    posterior group assignment
-    ## 5 $pca.cent 264    centring vector of PCA    
-    ## 6 $pca.norm 264    scaling vector of PCA     
-    ## 7 $pca.eig  258    eigenvalues of PCA        
+    ## 4 $assign   459    posterior group assignment
+    ## 5 $pca.cent 263    centring vector of PCA    
+    ## 6 $pca.norm 263    scaling vector of PCA     
+    ## 7 $pca.eig  256    eigenvalues of PCA        
     ## 
     ##   data.frame    nrow ncol content                                          
-    ## 1 $tab          531  40   retained PCs of PCA                              
+    ## 1 $tab          459  40   retained PCs of PCA                              
     ## 2 $means        3    40   group means                                      
     ## 3 $loadings     40   2    loadings of variables                            
-    ## 4 $ind.coord    531  2    coordinates of individuals (principal components)
+    ## 4 $ind.coord    459  2    coordinates of individuals (principal components)
     ## 5 $grp.coord    3    2    coordinates of groups                            
-    ## 6 $posterior    531  3    posterior membership probabilities               
-    ## 7 $pca.loadings 264  40   PCA loadings of original variables               
-    ## 8 $var.contr    264  2    contribution of original variables
+    ## 6 $posterior    459  3    posterior membership probabilities               
+    ## 7 $pca.loadings 263  40   PCA loadings of original variables               
+    ## 8 $var.contr    263  2    contribution of original variables
 
 plot DAPC using scatter()
 
@@ -453,13 +448,13 @@ plot DAPC using scatter()
 scatter(dapc_pre_2, col = viridis(2, alpha = 0.6))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ``` r
 scatter(dapc_pre_3, col = viridis(3, alpha = 0.6))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
 
 plot DAPC using ggplot
 
@@ -480,7 +475,7 @@ dapc_p2 <- dapc_p2 + theme_bw()
 dapc_p2
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 plot DAPC using ggplot
 
@@ -500,7 +495,7 @@ dapc_p3 <- dapc_p3 + theme_bw()
 dapc_p3
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 which loci have the greatest contribution?
 
@@ -510,7 +505,7 @@ loadingplot(dapc_pre_2$var.contr, axis=1,
                        thres=.07, lab.jitter=1)
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 
     ## NULL
 
@@ -519,7 +514,7 @@ loadingplot(dapc_pre_3$var.contr, axis=1,
                        thres=.07, lab.jitter=1)
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-19-2.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-18-2.png)<!-- -->
 
     ## NULL
 
@@ -528,7 +523,7 @@ loadingplot(dapc_pre_3$var.contr, axis=2,
                        thres=.07, lab.jitter=1)
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-19-3.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-18-3.png)<!-- -->
 
     ## NULL
 
@@ -539,14 +534,12 @@ data.frame(dapc_pre_3$var.contr) %>%
   filter(LD2 > 0.05)
 ```
 
-    ##             LD1        LD2
-    ## 146 0.005303561 0.05985673
+    ## [1] LD1 LD2
+    ## <0 rows> (or 0-length row.names)
 
 ``` r
-pre_loci[146]
+#pre_loci[146]
 ```
-
-    ## [1] "NC_035094_1_50984953"
 
 ## this is Omy_RAD3209-10 on omy 18 (Adaptive. Basin-wide, top-outlier)
 
@@ -562,14 +555,14 @@ compoplot(dapc_pre_2, posi="bottomright",
           txt.leg=paste("Cluster", 1:2), xlab="individuals", col=viridis(2))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
 
 ``` r
 compoplot(dapc_pre_3, posi="bottomright",
           txt.leg=paste("Cluster", 1:3), xlab="individuals", col=viridis(3))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-23-2.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-22-2.png)<!-- -->
 
 make easier to interpret DAPC plot using ggplot
 
@@ -593,7 +586,7 @@ p2 <- p2 + theme(axis.text.x = element_blank())
 p2
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
 make easier to interpret DAPC plot using ggplot
 
@@ -617,7 +610,7 @@ p3 <- p3 + theme(axis.text.x = element_blank())
 p3
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
 
 make combined figure for predam individuals…
 
@@ -628,10 +621,10 @@ pre_plot <- plot_grid(dapc_p2, p2, dapc_p3, p3, labels = "AUTO", ncol =2)
 pre_plot
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
 
 ``` r
-ggsave2("outputs/pre_plot.png", width = 14, height = 8)
+#ggsave2("outputs/pre_plot.png", width = 14, height = 8)
 ```
 
 # Now analyses post-removal dam individuals
@@ -642,7 +635,7 @@ find clusters
 grp_post <- find.clusters(genlit_post_location, max.n.clust=40, n.pca=100)
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
 
     ## Choose the number of clusters (>=2):
 
@@ -653,15 +646,15 @@ grp_post$Kstat
 ```
 
     ##      K=1      K=2      K=3      K=4      K=5      K=6      K=7      K=8 
-    ## 2453.333 2442.355 2436.224 2433.806 2429.950 2428.272 2427.024 2427.334 
+    ## 2301.139 2291.136 2285.779 2284.254 2281.594 2279.858 2278.967 2278.809 
     ##      K=9     K=10     K=11     K=12     K=13     K=14     K=15     K=16 
-    ## 2427.743 2429.750 2431.376 2432.859 2434.350 2435.933 2438.228 2440.638 
+    ## 2279.585 2280.790 2282.278 2284.325 2285.979 2287.439 2289.884 2292.573 
     ##     K=17     K=18     K=19     K=20     K=21     K=22     K=23     K=24 
-    ## 2442.950 2445.880 2448.181 2451.054 2454.132 2455.391 2458.771 2462.276 
+    ## 2295.163 2297.647 2298.953 2301.191 2306.314 2309.362 2310.433 2314.123 
     ##     K=25     K=26     K=27     K=28     K=29     K=30     K=31     K=32 
-    ## 2465.358 2468.679 2471.162 2472.366 2477.947 2480.711 2482.787 2485.909 
+    ## 2317.515 2321.069 2321.817 2325.758 2329.077 2332.114 2335.706 2337.400 
     ##     K=33     K=34     K=35     K=36     K=37     K=38     K=39     K=40 
-    ## 2490.395 2493.894 2497.229 2500.861 2504.294 2506.271 2512.049 2515.124
+    ## 2341.687 2345.366 2348.969 2352.594 2357.256 2359.594 2364.008 2367.426
 
 will use K=2 to K=5 since BIC stops decreasing all that much beyond
 there…
@@ -676,7 +669,7 @@ grp_post_2 <- find.clusters(genlit_post_location, max.n.clust=40, n.clust = 2)
 grp_post_3 <- find.clusters(genlit_post_location, max.n.clust=40, n.clust = 3)
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
 
     ## Choose the number PCs to retain (>=1):
 
@@ -716,26 +709,26 @@ dapc_post_2
     ## 
     ## $n.pca: 40 first PCs of PCA used
     ## $n.da: 1 discriminant functions saved
-    ## $var (proportion of conserved variance): 0.402
+    ## $var (proportion of conserved variance): 0.408
     ## 
-    ## $eig (eigenvalues): 2273  vector    length content                   
+    ## $eig (eigenvalues): 2207  vector    length content                   
     ## 1 $eig      1      eigenvalues               
-    ## 2 $grp      934    prior group assignment    
+    ## 2 $grp      863    prior group assignment    
     ## 3 $prior    2      prior group probabilities 
-    ## 4 $assign   934    posterior group assignment
-    ## 5 $pca.cent 264    centring vector of PCA    
-    ## 6 $pca.norm 264    scaling vector of PCA     
-    ## 7 $pca.eig  261    eigenvalues of PCA        
+    ## 4 $assign   863    posterior group assignment
+    ## 5 $pca.cent 263    centring vector of PCA    
+    ## 6 $pca.norm 263    scaling vector of PCA     
+    ## 7 $pca.eig  259    eigenvalues of PCA        
     ## 
     ##   data.frame    nrow ncol content                                          
-    ## 1 $tab          934  40   retained PCs of PCA                              
+    ## 1 $tab          863  40   retained PCs of PCA                              
     ## 2 $means        2    40   group means                                      
     ## 3 $loadings     40   1    loadings of variables                            
-    ## 4 $ind.coord    934  1    coordinates of individuals (principal components)
+    ## 4 $ind.coord    863  1    coordinates of individuals (principal components)
     ## 5 $grp.coord    2    1    coordinates of groups                            
-    ## 6 $posterior    934  2    posterior membership probabilities               
-    ## 7 $pca.loadings 264  40   PCA loadings of original variables               
-    ## 8 $var.contr    264  1    contribution of original variables
+    ## 6 $posterior    863  2    posterior membership probabilities               
+    ## 7 $pca.loadings 263  40   PCA loadings of original variables               
+    ## 8 $var.contr    263  1    contribution of original variables
 
 ``` r
 dapc_post_3
@@ -750,26 +743,26 @@ dapc_post_3
     ## 
     ## $n.pca: 40 first PCs of PCA used
     ## $n.da: 2 discriminant functions saved
-    ## $var (proportion of conserved variance): 0.402
+    ## $var (proportion of conserved variance): 0.408
     ## 
-    ## $eig (eigenvalues): 1057 714.7  vector    length content                   
+    ## $eig (eigenvalues): 1171 789  vector    length content                   
     ## 1 $eig      2      eigenvalues               
-    ## 2 $grp      934    prior group assignment    
+    ## 2 $grp      863    prior group assignment    
     ## 3 $prior    3      prior group probabilities 
-    ## 4 $assign   934    posterior group assignment
-    ## 5 $pca.cent 264    centring vector of PCA    
-    ## 6 $pca.norm 264    scaling vector of PCA     
-    ## 7 $pca.eig  261    eigenvalues of PCA        
+    ## 4 $assign   863    posterior group assignment
+    ## 5 $pca.cent 263    centring vector of PCA    
+    ## 6 $pca.norm 263    scaling vector of PCA     
+    ## 7 $pca.eig  259    eigenvalues of PCA        
     ## 
     ##   data.frame    nrow ncol content                                          
-    ## 1 $tab          934  40   retained PCs of PCA                              
+    ## 1 $tab          863  40   retained PCs of PCA                              
     ## 2 $means        3    40   group means                                      
     ## 3 $loadings     40   2    loadings of variables                            
-    ## 4 $ind.coord    934  2    coordinates of individuals (principal components)
+    ## 4 $ind.coord    863  2    coordinates of individuals (principal components)
     ## 5 $grp.coord    3    2    coordinates of groups                            
-    ## 6 $posterior    934  3    posterior membership probabilities               
-    ## 7 $pca.loadings 264  40   PCA loadings of original variables               
-    ## 8 $var.contr    264  2    contribution of original variables
+    ## 6 $posterior    863  3    posterior membership probabilities               
+    ## 7 $pca.loadings 263  40   PCA loadings of original variables               
+    ## 8 $var.contr    263  2    contribution of original variables
 
 ``` r
 dapc_post_4
@@ -784,26 +777,26 @@ dapc_post_4
     ## 
     ## $n.pca: 40 first PCs of PCA used
     ## $n.da: 3 discriminant functions saved
-    ## $var (proportion of conserved variance): 0.402
+    ## $var (proportion of conserved variance): 0.408
     ## 
-    ## $eig (eigenvalues): 767.8 530 410.3  vector    length content                   
+    ## $eig (eigenvalues): 633.1 495.8 367.5  vector    length content                   
     ## 1 $eig      3      eigenvalues               
-    ## 2 $grp      934    prior group assignment    
+    ## 2 $grp      863    prior group assignment    
     ## 3 $prior    4      prior group probabilities 
-    ## 4 $assign   934    posterior group assignment
-    ## 5 $pca.cent 264    centring vector of PCA    
-    ## 6 $pca.norm 264    scaling vector of PCA     
-    ## 7 $pca.eig  261    eigenvalues of PCA        
+    ## 4 $assign   863    posterior group assignment
+    ## 5 $pca.cent 263    centring vector of PCA    
+    ## 6 $pca.norm 263    scaling vector of PCA     
+    ## 7 $pca.eig  259    eigenvalues of PCA        
     ## 
     ##   data.frame    nrow ncol content                                          
-    ## 1 $tab          934  40   retained PCs of PCA                              
+    ## 1 $tab          863  40   retained PCs of PCA                              
     ## 2 $means        4    40   group means                                      
     ## 3 $loadings     40   3    loadings of variables                            
-    ## 4 $ind.coord    934  3    coordinates of individuals (principal components)
+    ## 4 $ind.coord    863  3    coordinates of individuals (principal components)
     ## 5 $grp.coord    4    3    coordinates of groups                            
-    ## 6 $posterior    934  4    posterior membership probabilities               
-    ## 7 $pca.loadings 264  40   PCA loadings of original variables               
-    ## 8 $var.contr    264  3    contribution of original variables
+    ## 6 $posterior    863  4    posterior membership probabilities               
+    ## 7 $pca.loadings 263  40   PCA loadings of original variables               
+    ## 8 $var.contr    263  3    contribution of original variables
 
 ``` r
 dapc_post_5
@@ -818,26 +811,26 @@ dapc_post_5
     ## 
     ## $n.pca: 40 first PCs of PCA used
     ## $n.da: 4 discriminant functions saved
-    ## $var (proportion of conserved variance): 0.402
+    ## $var (proportion of conserved variance): 0.408
     ## 
-    ## $eig (eigenvalues): 589.7 413.8 284.6 226.7  vector    length content                   
+    ## $eig (eigenvalues): 536.5 423.7 254.4 230.5  vector    length content                   
     ## 1 $eig      4      eigenvalues               
-    ## 2 $grp      934    prior group assignment    
+    ## 2 $grp      863    prior group assignment    
     ## 3 $prior    5      prior group probabilities 
-    ## 4 $assign   934    posterior group assignment
-    ## 5 $pca.cent 264    centring vector of PCA    
-    ## 6 $pca.norm 264    scaling vector of PCA     
-    ## 7 $pca.eig  261    eigenvalues of PCA        
+    ## 4 $assign   863    posterior group assignment
+    ## 5 $pca.cent 263    centring vector of PCA    
+    ## 6 $pca.norm 263    scaling vector of PCA     
+    ## 7 $pca.eig  259    eigenvalues of PCA        
     ## 
     ##   data.frame    nrow ncol content                                          
-    ## 1 $tab          934  40   retained PCs of PCA                              
+    ## 1 $tab          863  40   retained PCs of PCA                              
     ## 2 $means        5    40   group means                                      
     ## 3 $loadings     40   4    loadings of variables                            
-    ## 4 $ind.coord    934  4    coordinates of individuals (principal components)
+    ## 4 $ind.coord    863  4    coordinates of individuals (principal components)
     ## 5 $grp.coord    5    4    coordinates of groups                            
-    ## 6 $posterior    934  5    posterior membership probabilities               
-    ## 7 $pca.loadings 264  40   PCA loadings of original variables               
-    ## 8 $var.contr    264  4    contribution of original variables
+    ## 6 $posterior    863  5    posterior membership probabilities               
+    ## 7 $pca.loadings 263  40   PCA loadings of original variables               
+    ## 8 $var.contr    263  4    contribution of original variables
 
 plot DAPC using scatter()
 
@@ -845,25 +838,25 @@ plot DAPC using scatter()
 scatter(dapc_post_2, col = viridis(2, alpha = 0.6))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
 
 ``` r
 scatter(dapc_post_3, col = viridis(3, alpha = 0.6))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-34-2.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-33-2.png)<!-- -->
 
 ``` r
 scatter(dapc_post_4, col = viridis(4, alpha = 0.6))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-34-3.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-33-3.png)<!-- -->
 
 ``` r
 scatter(dapc_post_5, col = viridis(5, alpha = 0.6))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-34-4.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-33-4.png)<!-- -->
 
 plot DAPC using ggplot
 
@@ -883,7 +876,7 @@ dapc_d3 <- dapc_d3 + theme_bw()
 dapc_d3
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
 
 plot DAPC using ggplot
 
@@ -903,7 +896,7 @@ dapc_d4 <- dapc_d4 + theme_bw()
 dapc_d4
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
 
 genotype compostion plot for 2 to 5 clusters
 
@@ -912,28 +905,28 @@ compoplot(dapc_post_2, posi="bottomright",
           txt.leg=paste("Cluster", 1:2), xlab="individuals", col=viridis(2))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
 
 ``` r
 compoplot(dapc_post_3, posi="bottomright",
           txt.leg=paste("Cluster", 1:3), xlab="individuals", col=viridis(3))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-37-2.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-36-2.png)<!-- -->
 
 ``` r
 compoplot(dapc_post_4, posi="bottomright",
           txt.leg=paste("Cluster", 1:4), xlab="individuals", col=viridis(4))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-37-3.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-36-3.png)<!-- -->
 
 ``` r
 compoplot(dapc_post_5, posi="bottomright",
           txt.leg=paste("Cluster", 1:5), xlab="individuals", col=viridis(5))
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-37-4.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-36-4.png)<!-- -->
 
 make easier to interpret membership probability plot using ggplot
 
@@ -957,7 +950,7 @@ d3 <- d3 + theme(axis.text.x = element_blank())
 d3
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
 
 make easier to interpret membership probability plot using ggplot
 
@@ -981,7 +974,7 @@ d4 <- d4 + theme(axis.text.x = element_blank())
 d4
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
 
 make combined figure for post dam samples …
 
@@ -992,8 +985,8 @@ post_plot <- plot_grid(dapc_d3, d3, dapc_d4, d4, labels = "AUTO", ncol =2)
 post_plot
 ```
 
-![](steelhead_PCA_files/figure-gfm/unnamed-chunk-42-1.png)<!-- -->
+![](steelhead_PCA_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
 
 ``` r
-ggsave2("outputs/post_plot.png", width = 14, height = 8)
+#ggsave2("outputs/post_plot.png", width = 14, height = 8)
 ```
