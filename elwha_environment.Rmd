@@ -169,7 +169,7 @@ for TerrainWorks, create list of environmental layers we want to keep
 ```{r}
 tw_crop@ptr[["names"]]
   
-#for norwest, need list of the columns wanted
+#for terrainwork, need list of the columns wanted
 tw_list <- list('FlowVel', #Flow velocity (m/s) at bankfull depth
                 'StrmPow', #Stream power
                 'BFQ', #discharge
