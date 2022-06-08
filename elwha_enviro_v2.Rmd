@@ -1,0 +1,388 @@
+---
+title: "environmental_data_v2"
+author: "Kimberly Ledger"
+date: "6/3/2022"
+output: github_document
+---
+
+
+load libraries
+```{r}
+library(tidyverse)
+library(ggrepel)
+```
+
+
+
+## Steelhead 
+
+read in steelhead metadata that has river km and gps locations of sampling sites 
+```{r}
+onmy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Steelhead_Formatted_kjl.csv")
+head(onmy_metadata)
+```
+
+filter sites to include only post dam removal samples and create table of sampling sites 
+```{r}
+omy_sites <- onmy_metadata %>%
+  filter(Time == "Post") %>%
+  distinct(Lat, Long, rkm, Sampling_Site) %>%
+  arrange(rkm)
+omy_sites
+```
+
+export 
+```{r}
+#write.csv(sites, "onmy_sites.csv")
+```
+
+make dataframe of unique rkm for steelhead sites
+```{r}
+rkm_omy <- omy_sites %>%
+  distinct(rkm, Sampling_Site) %>%
+  drop_na()
+```
+
+
+plot omy sampling locations 
+```{r}
+site_plot <- ggplot(omy_sites) + 
+  geom_point(data = omy_sites, aes(x = Long, y = Lat, group = Sampling_Site)) +
+  geom_text_repel(data = omy_sites, aes(x = Long, y = Lat, group = Sampling_Site, 
+                                    label = Sampling_Site), hjust=1, vjust=0.5)
+site_plot
+```
+
+plot omy sampling locations 
+```{r}
+site_plot <- ggplot(omy_sites) + 
+  geom_text(data = omy_sites, aes(x = Long, y = Lat, label = Sampling_Site))
+
+site_plot
+```
+
+
+
+## Chinook
+
+read in chinook sites
+```{r}
+chinook_sites <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/Elwha_Chinook_DownstreamSites.csv")
+```
+
+
+plot
+```{r}
+site_plot <- ggplot(chinook_sites) + 
+  geom_text(data = chinook_sites, aes(x = Long, y = Lat, label = Sampling_Site))
+
+site_plot
+```
+
+
+read in chinook meta data
+```{r}
+chinook <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Chinook_Formatted.csv")
+```
+
+
+filter sites to include only post dam removal samples and create table of sampling sites 
+```{r}
+chinook %>%
+  filter(Time == "Post") %>%
+  distinct(Sampling_Site)
+```
+
+join lat/long with chinook metadata
+```{r}
+chinook_join <- chinook %>%
+  left_join(chinook_sites)
+```
+
+save for future use... 
+```{r}
+#write.csv(chinook_join, "~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Chinook_Formatted_wDownstreamLatLongrkm.csv")
+```
+
+
+make dataframe of unique rkm for chinook sites
+```{r}
+rkm_chin <- chinook_sites %>%
+  select(rkm, Sampling_Site) 
+```
+
+
+create full sites of rkm sites 
+```{r}
+rkm_sites <- rbind(rkm_omy, rkm_chin) %>%
+  distinct() %>%
+  arrange(rkm)
+```
+
+
+create rkm vector 
+round rkm to nearest tenth (because that is the resolution of the enviro data)
+```{r}
+rkm_vect <- as.vector(round(rkm_sites$rkm, digits = 1))
+rkm_vect
+```
+
+
+```{r}
+site_vect <- rkm_sites$Sampling_Site
+site_vect
+```
+
+
+## prep point-based environmental data 
+
+1. read in pebble count, depth, width, etc... data 
+```{r}
+avg_elwha_msv <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/AVG_Elwha_MVS_AKF.csv")
+#head(avg_elwha_msv)
+```
+
+filter to retain only environmental variables 
+```{r}
+avg_elwha_msv_filter <- avg_elwha_msv %>%
+  select(Rkm, Latitude, Longitude, Channel_Gradient, Discharge..BFQ., AVG_Percent_Spawn_Chin, AVG_Percent_Gravels)  %>% # will need to update AVG_Percent_Gravels to AVG_Percent_Steelhead 
+  rename(RKM = Rkm, Lat_avg = Latitude, Long_avg = Longitude, Discharge = Discharge..BFQ.) %>%
+  mutate(RKM = round(RKM, digits = 1)) %>%
+  group_by(RKM) %>%
+  summarise(Lat_avg = mean(Lat_avg),   ## these lat/long may no longer be very accurate (?)
+            Long_avg = mean(Long_avg),
+            Channel_Gradient = mean(Channel_Gradient),
+            Discharge = mean(Discharge),
+            AVG_Percent_Spawn_Chin = mean(AVG_Percent_Spawn_Chin),
+            AVG_Percent_Gravels = mean(AVG_Percent_Gravels))
+```
+
+
+2. read in channel type data 
+```{r}
+channel <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/Channel_Type.csv")
+#head(channel)
+```
+
+filter to retain only environmental variables 
+```{r}
+channel_filter <- channel %>%
+    select(Rkm, Channel_type) %>%
+  rename(RKM = Rkm)
+```
+
+
+
+3. read in spawning habitat data 
+```{r}
+spawn <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/Steelhead_Spawnable_Habitat.csv")
+head(spawn)
+```
+
+filter to retain only environmental variables 
+```{r}
+spawn_filter <- spawn %>%
+  select(rkm, General_habitat, Sampling_Site, Channel_type, Area) %>%
+  drop_na() %>%
+  rename(RKM = rkm, Sampling_Site_spawn = Sampling_Site, Channel_type_spawn = Channel_type, Spawn_area_m2 = Area)
+```
+
+
+
+
+4. read in ecosystem data 
+```{r}
+ecosystem_process <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/Ecosystem_Processes_Data.csv")
+#head(ecosystem_process)
+```
+
+filter to retain only environmental variables 
+```{r}
+ecosystem_process_filter <- ecosystem_process %>%
+  filter(SEASON == "Summer") %>%
+  select(SITE, W_WIDTH, CANOPY, FINES, D50, LAT, LONG, rKM) %>%
+  rename(RKM = rKM, Lat_eco = LAT, Long_eco = LONG)
+```
+
+5. read in invert data 
+```{r}
+invert <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/Invertebrate_Summary.csv")
+head(invert)
+```
+
+filter to retain only environmental variables 
+and for rkm with more than one invert sample, take mean
+```{r}
+invert_filter <- invert %>%
+  select(RKM, BFW, LATITUDE, LONGITUDE) %>%
+  drop_na(BFW) %>%
+  group_by(RKM) %>%
+  summarise(BFW = mean(BFW),
+            Lat_invert = mean(LATITUDE),
+            Long_invert = mean(LONGITUDE)) # these mean GPS locations may no longer be accurate...  
+```
+
+
+
+6. read in pebble data 
+```{r}
+pebbles <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/Riffle_Pool_Pebbles.csv")
+head(pebbles)
+```
+
+```{r}
+pebbles_filtered <- pebbles %>%
+  select(Latitude, Longitude, Rkm, Pebble_count_flow_CFS, Total_rifffle_area_m2) %>%
+  rename(RKM = Rkm, Lat_pebbles = Latitude, Long_pebbles = Longitude)
+```
+
+
+
+read in the lat/long and rkm base file
+```{r}
+rkm_latlong <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/elwharkmlatlong.csv")
+head(rkm_latlong)                       
+```
+
+
+try joining all environmental data files based on rkm 
+```{r}
+join <- rkm_latlong %>%
+  left_join(avg_elwha_msv_filter) %>%
+  left_join(channel_filter) %>%
+  left_join(ecosystem_process_filter) %>%
+  left_join(spawn_filter) %>%
+  left_join(invert_filter) %>%   
+  left_join(pebbles_filtered)
+```
+
+there are a few duplicated RKM to have spawn data from both the mainsteam and tribs 
+
+
+### quality control 
+
+check that all lat/long data are within 0.005 degrees (which is ~500m)
+```{r}
+join_lat <- join %>%
+  select(Lat, Lat_avg, Lat_eco, Lat_invert, Lat_pebbles) %>%
+  mutate(avg = abs(Lat - Lat_avg),
+         eco = abs(Lat - Lat_eco), 
+         invert = abs(Lat - Lat_invert),
+         peb = abs(Lat - Lat_pebbles)) %>%
+  filter(avg > 0.005 | eco > 0.005 | invert > 0.005 | peb > 0.005)
+```
+
+there are a handful of records from the invert dataset that have some lat discrepancies. 
+
+
+```{r}
+join_long <- join %>%
+  select(Long, Long_avg, Long_eco, Long_invert, Long_pebbles) %>%
+  mutate(avg = abs(Long - Long_avg),
+         eco = abs(Long - Long_eco), 
+         invert = abs(Long - Long_invert),
+         peb = abs(Long - Long_pebbles)) %>%
+  filter(avg > 0.005 | eco > 0.005 | invert > 0.005 | peb > 0.005)
+```
+
+again, there are a handful of records that have some long discrepancies in all datasets
+
+do we need to do anything/worry about this??? perhaps not since we'll be summarizing data near sites anyways.
+
+
+
+## extract environmental data near sites 
+
+write loop to extract data - for all values in rkm, extract all rows +/- 0.5 rkm, make unique df for each rkm value
+
+```{r}
+join$Channel_type <- as.factor(join$Channel_type)
+join$General_habitat <- as.factor(join$General_habitat)
+```
+
+
+```{r}
+df = data.frame()
+
+for (i in rkm_vect) {  #replace with rkm_vect
+  r = seq(from = i - 0.5, to = i + 0.5, by = 0.1)
+  #print(r)
+  tab = filter(join, RKM %in% r)
+  #print(tab)
+  sum <- tab %>% 
+    summarise(count = n(),
+              Channel_Gradient = mean(Channel_Gradient, na.rm = TRUE),
+              Discharge = mean(Discharge, na.rm = TRUE),
+              AVG_Percent_Spawn_Chin = mean(AVG_Percent_Spawn_Chin, na.rm = TRUE),
+              AVG_Percent_Gravels = mean(AVG_Percent_Gravels, na.rm = TRUE),
+              General_habitat = names(which.max(table(General_habitat))),
+              Channel_type = names(which.max(table(Channel_type))),
+              W_WIDTH = mean(W_WIDTH, na.rm = TRUE),
+              CANOPY = mean(CANOPY, na.rm = TRUE),
+              FINES = mean(FINES, na.rm = TRUE),
+              D50 = mean(D50, na.rm = TRUE),
+              BFW = mean(BFW, na.rm = TRUE), 
+              Pebble_count_flow_CFS = mean(Pebble_count_flow_CFS, na.rm = TRUE),
+              Total_rifffle_area_m2 = mean(Total_rifffle_area_m2, na.rm = TRUE))
+  df <- rbind(df, sum)
+}
+
+df$rkm <- rkm_vect
+df$Sampling_Site <- site_vect
+
+df
+```
+
+i don't understand why not all rows +/- 0.5 rkm from sampling sites are not filtered correctly in the code above.... 
+
+
+try a wider buffer (1KM)
+```{r}
+df_1km = data.frame()
+
+for (i in rkm_vect) {  #replace with rkm_vect
+  r = seq(from = i - 1, to = i + 1, by = 0.1)
+  #print(r)
+  tab = filter(join, RKM %in% r)
+  #print(tab)
+  sum <- tab %>% 
+    summarise(count = n(),
+              Channel_Gradient = mean(Channel_Gradient, na.rm = TRUE),
+              Discharge = mean(Discharge, na.rm = TRUE),
+              AVG_Percent_Spawn_Chin = mean(AVG_Percent_Spawn_Chin, na.rm = TRUE),
+              AVG_Percent_Gravels = mean(AVG_Percent_Gravels, na.rm = TRUE),
+              General_habitat = names(which.max(table(General_habitat))),
+              Channel_type = names(which.max(table(Channel_type))),
+              W_WIDTH = mean(W_WIDTH, na.rm = TRUE),
+              CANOPY = mean(CANOPY, na.rm = TRUE),
+              FINES = mean(FINES, na.rm = TRUE),
+              D50 = mean(D50, na.rm = TRUE),
+              BFW = mean(BFW, na.rm = TRUE), 
+              Pebble_count_flow_CFS = mean(Pebble_count_flow_CFS, na.rm = TRUE),
+              Total_rifffle_area_m2 = mean(Total_rifffle_area_m2, na.rm = TRUE))
+  df_1km <- rbind(df_1km, sum)
+}
+
+df_1km$rkm <- rkm_vect
+df_1km$Sampling_Site <- site_vect
+
+df_1km
+```
+
+
+
+Aimee's Elwha shapefile 
+```{r, message=FALSE}
+library(terra)
+elwha <- terra::vect("~/Desktop/LG_Proj4/Elwha_environmentaldata/Elwha_streams/Elwha_streams.shp")
+#elwha
+```
+
+```{r}
+plot(elwha)
+```
+
+
+
+
+
