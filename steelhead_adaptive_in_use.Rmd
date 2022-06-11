@@ -1,0 +1,210 @@
+---
+title: "step1_steelhead_adaptive_analyses_prep"
+author: "Jong Yoon Jeon"
+date: "5/8/2022"
+output: github_document
+---
+
+##Load libraries
+```{r}
+library(adegenet)
+library(pegas)
+library(genetics)
+library(dartR)
+library(dplyr)
+library(tidyverse)
+library(factoextra)
+#library(OutFLANK)
+library(hierfstat)
+library(cowplot)
+library(GGally)
+library(stringr)
+library(tidyr)
+library(ggpubr)
+library(poppr)
+library(readr)
+library(readxl)
+library(tibble)
+library(vcfR)
+```
+
+##Load data
+```{r}
+meta <- read_csv("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/Elwha_Steelhead_Formatted_kjl.csv")
+snp <- read_csv("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/SNP_Coordinates_CRITFC.csv")
+Locus_Key <- read_excel("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/Steelhead_Locus_Key.xlsx")
+for (i in 1:nrow(Locus_Key)){
+  Locus_Key$SnpPos[i] <- snp %>% filter(Locus == Locus_Key[i,]$`SNPPIT or Alias`) %>% dplyr::select(SNP)
+}
+Locus_Key$SnpPos <- gsub("\\.1", "_1", Locus_Key$SnpPos) # Replace ".' to "_" in loci names
+
+vcf <- read.vcfR("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/Elwha_GTSeq_Sans_CCT.vcf.gz")
+gt.vcf <- extract.gt(vcf, return.alleles = TRUE)
+gt.vcf <- gt.vcf[order(rownames(gt.vcf)),order(colnames(gt.vcf))] #Order samples and loci
+rownames(gt.vcf) <- gsub("\\.", "_", rownames(gt.vcf)) # Replace ".' to "_" in loci names
+```
+
+#Remove individuals with >20% missing data
+```{r}
+myMiss_loci <- apply(gt.vcf, MARGIN = 1, function(x){ sum(is.na(x)) })
+myMiss_loci <- myMiss_loci/ncol(gt.vcf)
+length(myMiss_loci) # = 334 which is the length of loci, so we should use myMiss_loci for filtering samples with high missing data percentage
+
+barplot(myMiss_loci, main = "Missing samples percentage of each locus")
+title(ylab = "Missingness (%)")
+
+#check missing samples percentage of each locus
+myMiss_sample <- apply(gt.vcf, MARGIN = 2, function(x){ sum(is.na(x)) })
+myMiss_sample <- myMiss_sample/nrow(gt.vcf)
+length(myMiss_sample) # = 1468 which is the length of samples
+
+barplot(myMiss_sample, main = "Missing loci percentage of each sample")
+title(ylab = "Missingness (%)")
+
+hist(myMiss_sample, main = "Samples with missing data")
+
+vcf@gt <- vcf@gt[, c(TRUE, myMiss_sample < 0.2)]
+vcf
+
+geno_filtered <- t(extract.gt(vcf, return.alleles = TRUE))
+colnames(geno_filtered) <- gsub("\\.", "_", colnames(geno_filtered)) # Replace ".' to "_" in loci names
+dim(geno_filtered)
+
+meta <- meta %>% mutate(TimePlace = paste(Time, "_", Location))
+dim(meta)
+geno_filtered_rn <- rownames_to_column(as.data.frame(geno_filtered), var="Sample_ID")
+dim(geno_filtered_rn)
+metageno <- left_join(meta, geno_filtered_rn, by="Sample_ID")
+dim(metageno)
+metageno <- metageno %>% filter(metageno$Sample_ID %in% geno_filtered_rn$Sample_ID)
+dim(metageno)
+metageno <- metageno[!is.na(metageno$Time) & !is.na(metageno$Location),] #Remove individuals without pop info
+dim(metageno)
+
+#Reverse the first column (=Sample_ID) to rownames (index)
+metageno1 <- metageno[,-1]
+metageno2 <- as.matrix(metageno)
+row.names(metageno1) <- metageno2[,1]
+metageno <- metageno1
+rm(metageno1)
+rm(metageno2)
+
+meta <- metageno[,c(1:16)] #return only metadata of filtered samples
+row.names(meta) <- rownames(metageno)
+geno_filtered <- metageno[,-c(1:16)]
+row.names(geno_filtered) <- rownames(metageno)
+```
+
+#Store data by Time and Location or Steelhead
+```{r}
+loci <- colnames(geno_filtered)
+ind <- rownames(geno_filtered)
+place <- metageno$Location
+timing <- metageno$Time
+timing_place <- metageno$TimePlace
+
+#Divide data by Time
+meta_pre <- meta %>% filter(Time=="Pre")
+meta_post <- meta %>% filter(Time=="Post")
+pop_pre <- meta_pre$Location
+pop_post <- meta_post$Location
+
+metag <- cbind(geno_filtered,meta)
+geno_pre <- metag %>% filter(Time=="Pre")
+geno_pre <- geno_pre[,c(1:334)]
+geno_post <- metag %>% filter(Time=="Post")
+geno_post <- geno_post[,c(1:334)]
+ind_pre <- rownames(geno_pre)
+ind_post <- rownames(geno_post)
+
+#Separate Steelhead data
+metageno_sh <- metageno %>% filter(Life_History_Type == "Steelhead")
+meta_sh <- metageno_sh[,c(1:16)] #return only metadata of filtered samples
+row.names(meta_sh) <- rownames(metageno_sh)
+
+#Divide Steelhead data by Time
+meta_sh_pre <- meta_sh %>% filter(Time=="Pre")
+meta_sh_post <- meta_sh %>% filter(Time=="Post")
+pop_sh_pre <- meta_sh_pre$Location
+pop_sh_post <- meta_sh_post$Location
+
+geno_filtered_sh <- metageno_sh[,-c(1:16)]
+metag_sh <- cbind(geno_filtered_sh,meta_sh)
+geno_sh_pre <- metag_sh %>% filter(Time=="Pre")
+geno_sh_pre <- geno_sh_pre[,c(1:334)]
+geno_sh_post <- metag_sh %>% filter(Time=="Post")
+geno_sh_post <- geno_sh_post[,c(1:334)]
+ind_sh_pre <- rownames(geno_sh_pre)
+ind_sh_post <- rownames(geno_sh_post)
+```
+
+##Convert to genind
+```{r}
+dgenind <- df2genind(geno_filtered, 
+          sep="/",
+          ind.names=ind,
+          loc.names=loci, 
+          pop = place,
+          ploidy = 2)
+
+dgenind_pre <- df2genind(geno_pre, 
+          sep="/",
+          ind.names=ind_pre,
+          loc.names=loci, 
+          pop = pop_pre,
+          ploidy = 2)
+
+dgenind_post <- df2genind(geno_post, 
+          sep="/",
+          ind.names=ind_post,
+          loc.names=loci, 
+          pop = pop_post,
+          ploidy = 2)  
+
+#dgenind_sh_pre <- df2genind(geno_sh_pre, 
+#          sep="/",
+#          ind.names=ind_sh_pre,
+#          loc.names=loci, 
+#          pop = pop_sh_pre,
+#          ploidy = 2)
+
+#dgenind_sh_post <- df2genind(geno_sh_post, 
+#          sep="/",
+#          ind.names=ind_sh_post,
+#          loc.names=loci, 
+#          pop = pop_sh_post,
+#          ploidy = 2) 
+```
+#Not conducted below this line
+
+##Filter run-time associated adaptive loci only, removing "character(0)" loci
+```{r}
+adaptive <- Locus_Key %>% filter(grepl('Run Timing', Locus_Key$`SNPeff Annotation output`))
+toRetain <- adaptive$SnpPos[1:12] #Remove loci without name (character(0))
+
+adaptive.gt.vcf <- gt.vcf[, names(gt.vcf) %in% toRetain] #Retain adaptive loci only
+
+#Change loci names from SnpPos to SnpName (="SNPPIT or Alias")
+for (i in 1:ncol(adaptive.gt.vcf)){
+  colnames(adaptive.gt.vcf)[i] <- as.character(Locus_Key[(which(Locus_Key$SnpPos == substr(colnames(adaptive.gt.vcf)[i], 1, nchar(colnames(adaptive.gt.vcf)[i])))),3]) #3rd column of "adaptive" includes SnpName
+} 
+```
+
+##Calculate Dps based on adaptive loci and change the Dps matrix to column/long format
+```{r}
+steelhead_adaptive_dps <- 1 - propShared(steelhead_adaptive.genind)
+require(reshape2)
+temp_m <- as.matrix(steelhead_adaptive_dps)
+temp_m[upper.tri(temp_m, diag=TRUE)] <- NA
+m <- melt(temp_m)
+rm(temp_m)
+IndData <- na.omit(m)
+IndData <- IndData[, c(2,1,3)] # Change the column order
+colnames(IndData) <- c('Ind1', 'Ind2', 'Dps') # Change column names to be mnemonic 
+for (i in 1:nrow(IndData)){
+  IndData$Sampling_Site[i] <- steelhead.metadata %>% filter(Sample_ID == IndData$Ind1[i]) %>% select(Location)
+}
+temp_IndData <- as.matrix(IndData)
+write.csv(temp_IndData, file = paste0("steelhead_dps.csv"), row.names = FALSE)
+rm(temp_IndData)  
+```

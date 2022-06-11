@@ -1,0 +1,555 @@
+---
+title: "step3_steelhead_adaptive_boxplot"
+author: "Jong Yoon Jeon"
+date: "5/21/2022"
+output: github_document
+---
+
+#Load packages
+```{r}
+library(dplyr)
+library(tidyverse)
+library(cowplot)
+library(ggpubr)
+```
+
+# function of count genotype frequency
+```{r}
+calgenofreq <- function(geno,i){
+                  count <- lapply(geno, table)
+                  sum <- lapply(count, sum)
+                  genofreq <- count[[i]]/sum[[i]]
+                  return(genofreq)
+}
+genofreqlist <- function(genodata){
+                  v <- seq(1,length(genodata),1)
+                  freq <- lapply(v, calgenofreq,geno=genodata)
+                  names(freq) <- colnames(genodata)
+                  return(freq)
+  
+}
+calallelefreq <- function(genofreq, i){
+                minorgeno <- min(genofreq[[i]])
+                majorgeno <- max(genofreq[[i]])
+                if(length(genofreq[[i]])==3){
+                    majorallele <- as.numeric(majorgeno) + 1/2*as.numeric(genofreq[[i]][2])
+                    minorallele <- as.numeric(minorgeno) + 1/2*as.numeric(genofreq[[i]][2])
+                }
+                else{
+                  majorallele <- as.numeric(majorgeno) + 1/2*as.numeric(minorgeno)
+                  minorallele <- 1/2*as.numeric(minorgeno)
+                }
+                return(c(majorallele, minorallele))
+}
+
+allelefreqlist <- function(genodata){
+                  v <- seq(1,length(genodata),1)
+                  freq <- lapply(v, calallelefreq,geno=genodata)
+                  names(freq) <- names(genodata)
+                  return(freq)
+}
+
+#Make a data.frame of Run-timing loci
+RunTiming_Loci <- c("Omy28_11671116", "Omy_RAD52458-17", "Omy28_11683204", "Omy28_11667578", "Omy28_11676622", "Omy_RAD47080-54", "Omy28_11607954", "Omy_RAD15709-53", "Omy28_11632591", "Omy_GREB1_09", "Omy28_11773194", "Omy28_11658853", "Omy28_11625241", "Omy_GREB1_05")
+RunTiming_SnpPos <- Locus_Key %>% filter(Locus_Key$`SNPPIT or Alias` %in% RunTiming_Loci) %>% select(`SNPPIT or Alias`, `SnpPos`)
+genoC <- geno_filtered[,order(colnames(geno_filtered))]
+genoC <- genoC[,which(colnames(genoC) %in% RunTiming_SnpPos$SnpPos)]
+#Change loci names from SnpPos to SnpName (="SNPPIT or Alias")
+for (i in 1:ncol(genoC)){
+  colnames(genoC)[i] <- as.character(RunTiming_SnpPos[(which(RunTiming_SnpPos$SnpPos == colnames(genoC)[i])),1]) #3rd column of "steelhead_adaptive" includes SnpName
+}
+colnames(genoC)[9] <- "Omy_RAD47080-54" #Choose one between two duplicated names, "Omy_RAD47080-54" or "Omy_RAD15709-53"
+
+#location
+genoCmeta<- cbind(genoC, meta)
+genoID <- genoCmeta %>% filter(Location=="ID")
+genoID <- genoID[,1:13]
+genoBD <- genoCmeta %>% filter(Location=="BD")
+genoBD <- genoBD[,1:13]
+genoAD <- genoCmeta %>% filter(Location=="AD")                              
+genoAD <- genoAD[,1:13]
+genoSBLR <- genoCmeta %>% filter(Location=="SBLR")                              
+genoSBLR <- genoSBLR[,1:13]
+genoPre <- genoCmeta %>% filter(Time=="Pre")
+genoPre <- genoPre[,1:13]
+genoPost <- genoCmeta %>% filter(Time=="Post")
+genoPost <- genoPost[,1:13]
+
+genoPreID <- genoCmeta %>% filter(Time=="Pre") %>% filter(Location=="ID")
+genoPreAD <- genoCmeta %>% filter(Time=="Pre") %>% filter(Location=="AD")
+genoPreBD <- genoCmeta %>% filter(Time=="Pre") %>% filter(Location=="BD")
+genoPreSBLR <- genoCmeta %>% filter(Time=="Pre") %>% filter(Location=="SBLR")
+genoPostID <- genoCmeta %>% filter(Time=="Post") %>% filter(Location=="ID")
+genoPostAD <- genoCmeta %>% filter(Time=="Post") %>% filter(Location=="AD")
+genoPostBD <- genoCmeta %>% filter(Time=="Post") %>% filter(Location=="BD")
+genoPostSBLR <- genoCmeta %>% filter(Time=="Post") %>% filter(Location=="SBLR")
+genoPreID <- genoPreID[,1:13]
+genoPreAD <- genoPreAD[,1:13]
+genoPreBD <- genoPreBD[,1:13]
+genoPreSBLR <- genoPreSBLR[,1:13]
+genoPostID <- genoPostID[,1:13]
+genoPostAD <- genoPostAD[,1:13]
+genoPostBD <- genoPostBD[,1:13]
+genoPostSBLR <- genoPostSBLR[,1:13]
+
+genofreq <-genofreqlist(genoC)
+genofreqPreAD <- genofreqlist(genoPreAD)
+genofreqPreID <- genofreqlist(genoPreID)
+genofreqPreBD <- genofreqlist(genoPreBD)
+genofreqPreSBLR <- genofreqlist(genoPreSBLR)
+genofreqPostID <- genofreqlist(genoPostID)
+genofreqPostAD <- genofreqlist(genoPostAD)
+genofreqPostBD <- genofreqlist(genoPostBD)
+genofreqPostSBLR <- genofreqlist(genoPostSBLR)
+genofreqPost <- genofreqlist(genoPost)
+genofreqPre <- genofreqlist(genoPre)
+
+allelefreqPreAD <- allelefreqlist(genofreqPreAD)
+allelefreqPreID <- allelefreqlist(genofreqPreID)
+allelefreqPreBD <- allelefreqlist(genofreqPreBD)
+allelefreqPreSBLR <- allelefreqlist(genofreqPreSBLR)
+allelefreqPostBD <- allelefreqlist(genofreqPostBD)
+allelefreqPostAD <- allelefreqlist(genofreqPostAD)
+allelefreqPostID <- allelefreqlist(genofreqPostID)
+allelefreqPostSBLR <- allelefreqlist(genofreqPostSBLR)
+allelefreqPost <- allelefreqlist(genofreqPost)
+allelefreqPre <- allelefreqlist(genofreqPre)
+
+allelefreq <- allelefreqlist(genofreq)
+
+```
+
+#plot the change of geno freq
+```{r}
+#Omy_RAD52458.17's genotypes were reverse-complemented
+genofreqPreID_tmp <- genofreqPreID #Ad-hoc modification to match the number of rows of each locus table
+length(genofreqPreID_tmp$`Omy_RAD52458-17`) <- 3 
+genofreqPreID_tmp$`Omy_RAD52458-17`[3] = 0
+gedfPreID <- arrange(data.frame(genofreqPreID_tmp))
+rm(genofreqPreID_tmp)
+gedfPreID <- rownames_to_column(gedfPreID)
+colnames(gedfPreID)[1] <- "Omy_RAD52458.17.Var1"
+colnames(gedfPreID)[4] <- "Omy_RAD52458.17.Freq"
+gedfPreID[3,1] <- "C/C"
+gedfPreID <- gedfPreID[,c(2:3,1,4:26)]
+gedfPreID[,c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] <- gedfPreID[c(3,2,1),c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] #Reorder row due to reverse-complemented genotypes
+gedfPreID[,c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] <- gedfPreID[c(3,2,1),c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreID[,c("Omy28_11632591.Var1","Omy28_11632591.Freq")] <- gedfPreID[c(3,2,1),c("Omy28_11632591.Var1","Omy28_11632591.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreID[,c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] <- gedfPreID[c(3,2,1),c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreID[,c("Omy28_11667578.Var1","Omy28_11667578.Freq")] <- gedfPreID[c(3,2,1),c("Omy28_11667578.Var1","Omy28_11667578.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreID[,c("Omy28_11676622.Var1","Omy28_11676622.Freq")] <- gedfPreID[c(3,2,1),c("Omy28_11676622.Var1","Omy28_11676622.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreID[,c("Omy28_11773194.Var1","Omy28_11773194.Freq")] <- gedfPreID[c(3,2,1),c("Omy28_11773194.Var1","Omy28_11773194.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+
+genofreqPreAD_tmp <- genofreqPreAD #Ad-hoc modification to match the number of rows of each locus table
+length(genofreqPreAD_tmp$`Omy_RAD52458-17`) <- 3 
+genofreqPreAD_tmp$`Omy_RAD52458-17`[3] = 0
+gedfPreAD <- arrange(data.frame(genofreqPreAD_tmp))
+rm(genofreqPreID_tmp)
+gedfPreAD <- rownames_to_column(gedfPreAD)
+colnames(gedfPreAD)[1] <- "Omy_RAD52458.17.Var1"
+colnames(gedfPreAD)[4] <- "Omy_RAD52458.17.Freq"
+gedfPreAD[3,1] <- "C/C"
+gedfPreAD <- gedfPreAD[,c(2:3,1,4:26)]
+gedfPreAD[,c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] <- gedfPreAD[c(3,2,1),c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] #Reorder row due to reverse-complemented genotypes
+gedfPreAD[,c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] <- gedfPreAD[c(3,2,1),c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreAD[,c("Omy28_11632591.Var1","Omy28_11632591.Freq")] <- gedfPreAD[c(3,2,1),c("Omy28_11632591.Var1","Omy28_11632591.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreAD[,c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] <- gedfPreAD[c(3,2,1),c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreAD[,c("Omy28_11667578.Var1","Omy28_11667578.Freq")] <- gedfPreAD[c(3,2,1),c("Omy28_11667578.Var1","Omy28_11667578.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreAD[,c("Omy28_11676622.Var1","Omy28_11676622.Freq")] <- gedfPreAD[c(3,2,1),c("Omy28_11676622.Var1","Omy28_11676622.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreAD[,c("Omy28_11773194.Var1","Omy28_11773194.Freq")] <- gedfPreAD[c(3,2,1),c("Omy28_11773194.Var1","Omy28_11773194.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+
+genofreqPreBD_tmp <- genofreqPreBD #Ad-hoc modification to match the number of rows of each locus table
+length(genofreqPreBD_tmp$`Omy_RAD52458-17`) <- 3 
+genofreqPreBD_tmp$`Omy_RAD52458-17`[2:3] = 0
+gedfPreBD <- arrange(data.frame(genofreqPreBD_tmp))
+rm(genofreqPreBD_tmp)
+gedfPreBD <- rownames_to_column(gedfPreBD)
+colnames(gedfPreBD)[1] <- "Omy_RAD52458.17.Var1"
+colnames(gedfPreBD)[4] <- "Omy_RAD52458.17.Freq"
+gedfPreBD[1:3,1] <- c("A/A", "A/C", "C/C")
+gedfPreBD <- gedfPreBD[,c(2:3,1,4:26)]
+gedfPreBD[,c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] <- gedfPreBD[c(3,2,1),c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] #Reorder row due to reverse-complemented genotypes
+gedfPreBD[,c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] <- gedfPreBD[c(3,2,1),c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreBD[,c("Omy28_11632591.Var1","Omy28_11632591.Freq")] <- gedfPreBD[c(3,2,1),c("Omy28_11632591.Var1","Omy28_11632591.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreBD[,c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] <- gedfPreBD[c(3,2,1),c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreBD[,c("Omy28_11667578.Var1","Omy28_11667578.Freq")] <- gedfPreBD[c(3,2,1),c("Omy28_11667578.Var1","Omy28_11667578.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreBD[,c("Omy28_11676622.Var1","Omy28_11676622.Freq")] <- gedfPreBD[c(3,2,1),c("Omy28_11676622.Var1","Omy28_11676622.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreBD[,c("Omy28_11773194.Var1","Omy28_11773194.Freq")] <- gedfPreBD[c(3,2,1),c("Omy28_11773194.Var1","Omy28_11773194.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+
+genofreqPreSBLR_tmp <- genofreqPreSBLR #Ad-hoc modification to match the number of rows of each locus table
+length(genofreqPreSBLR_tmp$`Omy_RAD52458-17`) <- 3 
+genofreqPreSBLR_tmp$`Omy_RAD52458-17`[2:3] = 0
+gedfPreSBLR <- arrange(data.frame(genofreqPreSBLR_tmp))
+rm(genofreqPreSBLR_tmp)
+gedfPreSBLR <- rownames_to_column(gedfPreSBLR)
+colnames(gedfPreSBLR)[1] <- "Omy_RAD52458.17.Var1"
+colnames(gedfPreSBLR)[4] <- "Omy_RAD52458.17.Freq"
+gedfPreSBLR[1:3,1] <- c("A/A", "A/C", "C/C")
+gedfPreSBLR <- gedfPreSBLR[,c(2:3,1,4:26)]
+gedfPreSBLR[,c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] <- gedfPreSBLR[c(3,2,1),c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] #Reorder row due to reverse-complemented genotypes
+gedfPreSBLR[,c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] <- gedfPreSBLR[c(3,2,1),c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreSBLR[,c("Omy28_11632591.Var1","Omy28_11632591.Freq")] <- gedfPreSBLR[c(3,2,1),c("Omy28_11632591.Var1","Omy28_11632591.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreSBLR[,c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] <- gedfPreSBLR[c(3,2,1),c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreSBLR[,c("Omy28_11667578.Var1","Omy28_11667578.Freq")] <- gedfPreSBLR[c(3,2,1),c("Omy28_11667578.Var1","Omy28_11667578.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreSBLR[,c("Omy28_11676622.Var1","Omy28_11676622.Freq")] <- gedfPreSBLR[c(3,2,1),c("Omy28_11676622.Var1","Omy28_11676622.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPreSBLR[,c("Omy28_11773194.Var1","Omy28_11773194.Freq")] <- gedfPreSBLR[c(3,2,1),c("Omy28_11773194.Var1","Omy28_11773194.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+
+genofreqPostID_tmp <- genofreqPostID #Ad-hoc modification to match the number of rows of each locus table
+length(genofreqPostID_tmp$`Omy_RAD52458-17`) <- 3 
+genofreqPostID_tmp$`Omy_RAD52458-17`[3] = 0
+gedfPostID <- arrange(data.frame(genofreqPostID_tmp))
+rm(genofreqPostID_tmp)
+gedfPostID <- rownames_to_column(gedfPostID)
+colnames(gedfPostID)[1] <- "Omy_RAD52458.17.Var1"
+colnames(gedfPostID)[4] <- "Omy_RAD52458.17.Freq"
+gedfPostID[3,1] <- "C/C"
+gedfPostID <- gedfPostID[,c(2:3,1,4:26)]
+gedfPostID[,c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] <- gedfPostID[c(3,2,1),c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] #Reorder row due to reverse-complemented genotypes
+gedfPostID[,c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] <- gedfPostID[c(3,2,1),c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostID[,c("Omy28_11632591.Var1","Omy28_11632591.Freq")] <- gedfPostID[c(3,2,1),c("Omy28_11632591.Var1","Omy28_11632591.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostID[,c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] <- gedfPostID[c(3,2,1),c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostID[,c("Omy28_11667578.Var1","Omy28_11667578.Freq")] <- gedfPostID[c(3,2,1),c("Omy28_11667578.Var1","Omy28_11667578.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostID[,c("Omy28_11676622.Var1","Omy28_11676622.Freq")] <- gedfPostID[c(3,2,1),c("Omy28_11676622.Var1","Omy28_11676622.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostID[,c("Omy28_11773194.Var1","Omy28_11773194.Freq")] <- gedfPostID[c(3,2,1),c("Omy28_11773194.Var1","Omy28_11773194.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+
+genofreqPostBD_tmp <- genofreqPostBD #Ad-hoc modification to match the number of rows of each locus table
+length(genofreqPostBD_tmp$`Omy_RAD52458-17`) <- 3 
+genofreqPostBD_tmp$`Omy_RAD52458-17`[2:3] = 0
+gedfPostBD <- arrange(data.frame(genofreqPostBD_tmp))
+rm(genofreqPostBD_tmp)
+gedfPostBD <- rownames_to_column(gedfPostBD)
+colnames(gedfPostBD)[1] <- "Omy_RAD52458.17.Var1"
+colnames(gedfPostBD)[4] <- "Omy_RAD52458.17.Freq"
+gedfPostBD[1:3,1] <- c("A/A", "A/C", "C/C")
+gedfPostBD <- gedfPostBD[,c(2:3,1,4:26)]
+gedfPostBD[,c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] <- gedfPostBD[c(3,2,1),c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] #Reorder row due to reverse-complemented genotypes
+gedfPostBD[,c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] <- gedfPostBD[c(3,2,1),c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostBD[,c("Omy28_11632591.Var1","Omy28_11632591.Freq")] <- gedfPostBD[c(3,2,1),c("Omy28_11632591.Var1","Omy28_11632591.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostBD[,c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] <- gedfPostBD[c(3,2,1),c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostBD[,c("Omy28_11667578.Var1","Omy28_11667578.Freq")] <- gedfPostBD[c(3,2,1),c("Omy28_11667578.Var1","Omy28_11667578.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostBD[,c("Omy28_11676622.Var1","Omy28_11676622.Freq")] <- gedfPostBD[c(3,2,1),c("Omy28_11676622.Var1","Omy28_11676622.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostBD[,c("Omy28_11773194.Var1","Omy28_11773194.Freq")] <- gedfPostBD[c(3,2,1),c("Omy28_11773194.Var1","Omy28_11773194.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+
+gedfPostAD <- arrange(data.frame(genofreqPostAD))
+gedfPostAD[,c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] <- gedfPostAD[c(3,2,1),c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] #Reorder row due to reverse-complemented genotypes
+gedfPostAD[,c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] <- gedfPostAD[c(3,2,1),c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostAD[,c("Omy28_11632591.Var1","Omy28_11632591.Freq")] <- gedfPostAD[c(3,2,1),c("Omy28_11632591.Var1","Omy28_11632591.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostAD[,c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] <- gedfPostAD[c(3,2,1),c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostAD[,c("Omy28_11667578.Var1","Omy28_11667578.Freq")] <- gedfPostAD[c(3,2,1),c("Omy28_11667578.Var1","Omy28_11667578.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostAD[,c("Omy28_11676622.Var1","Omy28_11676622.Freq")] <- gedfPostAD[c(3,2,1),c("Omy28_11676622.Var1","Omy28_11676622.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostAD[,c("Omy28_11773194.Var1","Omy28_11773194.Freq")] <- gedfPostAD[c(3,2,1),c("Omy28_11773194.Var1","Omy28_11773194.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+
+genofreqPostSBLR_tmp <- genofreqPostSBLR  #Ad-hoc modification to match the number of rows of each locus table
+length(genofreqPostSBLR_tmp$`Omy_RAD52458-17`) <- 3 
+genofreqPostSBLR_tmp$`Omy_RAD52458-17`[2:3] = 0
+length(genofreqPostSBLR_tmp$`Omy28_11625241`) <- 3 
+genofreqPostSBLR_tmp$`Omy28_11625241`[3] = 0
+length(genofreqPostSBLR_tmp$`Omy_GREB1_09`) <- 3 
+genofreqPostSBLR_tmp$`Omy_GREB1_09`[2:3] = 0
+length(genofreqPostSBLR_tmp$`Omy28_11658853`) <- 3 
+genofreqPostSBLR_tmp$`Omy28_11658853`[2:3] = 0
+length(genofreqPostSBLR_tmp$`Omy28_11667578`) <- 3 
+genofreqPostSBLR_tmp$`Omy28_11667578`[2:3] = 0
+length(genofreqPostSBLR_tmp$`Omy_RAD47080-54`) <- 3 
+genofreqPostSBLR_tmp$`Omy_RAD47080-54`[2:3] = 0
+length(genofreqPostSBLR_tmp$`Omy28_11671116`) <- 3 
+genofreqPostSBLR_tmp$`Omy28_11671116`[2:3] = 0
+length(genofreqPostSBLR_tmp$`Omy28_11676622`) <- 3 
+genofreqPostSBLR_tmp$`Omy28_11676622`[2:3] = 0
+length(genofreqPostSBLR_tmp$`Omy28_11683204`) <- 3 
+genofreqPostSBLR_tmp$`Omy28_11683204`[2:3] = 0
+length(genofreqPostSBLR_tmp$`Omy28_11773194`) <- 3 
+genofreqPostSBLR_tmp$`Omy28_11773194`[2:3] = 0
+gedfPostSBLR <- arrange(data.frame(genofreqPostSBLR_tmp))
+rm(genofreqPostSBLR_tmp)
+colnames(gedfPostSBLR)[3] <- "Omy_RAD52458.17.Freq"
+colnames(gedfPostSBLR)[6] <- "Omy28_11625241.Freq"
+colnames(gedfPostSBLR)[9] <- "Omy_GREB1_09.Freq"
+colnames(gedfPostSBLR)[10] <- "Omy28_11658853.Freq"
+colnames(gedfPostSBLR)[11] <- "Omy28_11667578.Freq"
+colnames(gedfPostSBLR)[12] <- "Omy_RAD47080.54.Freq"
+colnames(gedfPostSBLR)[13] <- "Omy28_11671116.Freq"
+colnames(gedfPostSBLR)[14] <- "Omy28_11676622.Freq"
+colnames(gedfPostSBLR)[15] <- "Omy28_11683204.Freq"
+colnames(gedfPostSBLR)[16] <- "Omy28_11773194.Freq"
+gedfPostSBLR <- rownames_to_column(gedfPostSBLR)
+colnames(gedfPostSBLR)[1] <- "Omy_RAD52458.17.Var1"
+gedfPostSBLR[,1] <- c("A/A", "A/C", "C/C")
+gedfPostSBLR["Omy28_11625241.Var1"] <- c("G/A", "G/G", "A/A") #Row should be reordered to match e.g.gedfPostAD later
+gedfPostSBLR["Omy_GREB1_09.Var1"] <- c("G/G", "G/T", "T/T")
+gedfPostSBLR["Omy28_11658853.Var1"] <- c("C/C", "C/A", "A/A") #Row should be reordered to match e.g.gedfPostAD later
+gedfPostSBLR["Omy28_11667578.Var1"] <- c("C/C", "C/T", "T/T") 
+gedfPostSBLR["Omy_RAD47080.54.Var1"] <- c("G/G", "G/A", "A/A") #Row should be reordered to match e.g.gedfPostAD later
+gedfPostSBLR["Omy28_11671116.Var1"] <- c("T/T", "T/C", "C/C") #Row should be reordered to match e.g.gedfPostAD later
+gedfPostSBLR["Omy28_11676622.Var1"] <- c("G/G", "G/T", "T/T")
+gedfPostSBLR["Omy28_11683204.Var1"] <- c("T/T", "T/G", "G/G") #Row should be reordered to match e.g.gedfPostAD later
+gedfPostSBLR["Omy28_11773194.Var1"] <- c("A/A", "A/T", "T/T")
+gedfPostSBLR <- gedfPostSBLR[,c(2:3,1,4,5:6,18,7,8:9,19,10,20,11,21,12,22,13,23,14,24,15,25,16,26,17)]
+gedfPostSBLR[,c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] #Reorder row due to reverse-complemented genotypes
+gedfPostSBLR[,c("Omy28_11625241.Var1","Omy28_11625241.Freq")] <- gedfPostSBLR[c(3,1,2),c("Omy28_11625241.Var1","Omy28_11625241.Freq")] #Reorder row
+gedfPostSBLR[,c("Omy28_11658853.Var1","Omy28_11658853.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy28_11658853.Var1","Omy28_11658853.Freq")] #Reorder row
+gedfPostSBLR[,c("Omy_RAD47080.54.Var1","Omy_RAD47080.54.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy_RAD47080.54.Var1","Omy_RAD47080.54.Freq")] #Reorder row
+gedfPostSBLR[,c("Omy28_11671116.Var1","Omy28_11671116.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy28_11671116.Var1","Omy28_11671116.Freq")] #Reorder row
+gedfPostSBLR[,c("Omy28_11683204.Var1","Omy28_11683204.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy28_11683204.Var1","Omy28_11683204.Freq")] #Reorder row
+gedfPostSBLR[,c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostSBLR[,c("Omy28_11632591.Var1","Omy28_11632591.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy28_11632591.Var1","Omy28_11632591.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostSBLR[,c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostSBLR[,c("Omy28_11667578.Var1","Omy28_11667578.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy28_11667578.Var1","Omy28_11667578.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostSBLR[,c("Omy28_11676622.Var1","Omy28_11676622.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy28_11676622.Var1","Omy28_11676622.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPostSBLR[,c("Omy28_11773194.Var1","Omy28_11773194.Freq")] <- gedfPostSBLR[c(3,2,1),c("Omy28_11773194.Var1","Omy28_11773194.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+
+genofreqPre_tmp <- genofreqPre #Ad-hoc modification to match the number of rows of each locus table
+length(genofreqPre_tmp$`Omy_RAD52458-17`) <- 3 
+genofreqPre_tmp$`Omy_RAD52458-17`[3] = 0
+gedfPre <- arrange(data.frame(genofreqPre_tmp))
+rm(genofreqPre_tmp)
+gedfPre <- rownames_to_column(gedfPre)
+colnames(gedfPre)[1] <- "Omy_RAD52458.17.Var1"
+colnames(gedfPre)[4] <- "Omy_RAD52458.17.Freq"
+gedfPre[1:3,1] <- c("A/A", "A/C", "C/C")
+gedfPre <- gedfPre[,c(2:3,1,4:26)]
+gedfPre[,c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] <- gedfPre[c(3,2,1),c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] #Reorder row due to reverse-complemented genotypes
+gedfPre[,c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] <- gedfPre[c(3,2,1),c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPre[,c("Omy28_11632591.Var1","Omy28_11632591.Freq")] <- gedfPre[c(3,2,1),c("Omy28_11632591.Var1","Omy28_11632591.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPre[,c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] <- gedfPre[c(3,2,1),c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPre[,c("Omy28_11667578.Var1","Omy28_11667578.Freq")] <- gedfPre[c(3,2,1),c("Omy28_11667578.Var1","Omy28_11667578.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPre[,c("Omy28_11676622.Var1","Omy28_11676622.Freq")] <- gedfPre[c(3,2,1),c("Omy28_11676622.Var1","Omy28_11676622.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPre[,c("Omy28_11773194.Var1","Omy28_11773194.Freq")] <- gedfPre[c(3,2,1),c("Omy28_11773194.Var1","Omy28_11773194.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+
+gedfPost <- arrange(data.frame(genofreqPost))
+gedfPost[,c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] <- gedfPost[c(3,2,1),c("Omy_RAD52458.17.Var1","Omy_RAD52458.17.Freq")] #Reorder row due to reverse-complemented genotypes
+gedfPost[,c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] <- gedfPost[c(3,2,1),c("Omy_GREB1_05.Var1","Omy_GREB1_05.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPost[,c("Omy28_11632591.Var1","Omy28_11632591.Freq")] <- gedfPost[c(3,2,1),c("Omy28_11632591.Var1","Omy28_11632591.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPost[,c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] <- gedfPost[c(3,2,1),c("Omy_GREB1_09.Var1","Omy_GREB1_09.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPost[,c("Omy28_11667578.Var1","Omy28_11667578.Freq")] <- gedfPost[c(3,2,1),c("Omy28_11667578.Var1","Omy28_11667578.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPost[,c("Omy28_11676622.Var1","Omy28_11676622.Freq")] <- gedfPost[c(3,2,1),c("Omy28_11676622.Var1","Omy28_11676622.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+gedfPost[,c("Omy28_11773194.Var1","Omy28_11773194.Freq")] <- gedfPost[c(3,2,1),c("Omy28_11773194.Var1","Omy28_11773194.Freq")] #Reorder row to match the order of premature-heterozygote-mature genotypes for downstream function
+
+#Check all the "gedf~~" objects if the genotypes' order is matching with "Summer Run Homozygote","Heterozygote", "Winter Run Homozygote" order
+
+calgenofreq2 <- function(geno,year){
+  if(nrow(geno)==3){
+    geno1 <- geno %>% gather(key="marker", value = "genofreq", seq(2,26,2)) %>% 
+      group_by(marker) %>% dplyr::select(marker,genofreq) %>%
+      mutate(genofreqtype= rep(c("Summer Run Homozygote","Heterozygote", "Winter Run Homozygote"))) %>% mutate(year=year)
+  }
+  else{
+     geno1 <- geno %>% gather(key="marker", value = "genofreq", seq(2,26,2)) %>% 
+      group_by(marker) %>% dplyr::select(marker,genofreq) %>%
+      mutate(genofreqtype= rep(c("Heterozygote", "Winter Run Homozygote"))) %>% mutate(year=year)
+  }
+  
+  geno2 <- geno %>% gather(key="marker", value= "genotype", seq(1,25,2)) %>% dplyr::select(genotype) 
+  geno1$marker <- gsub(".Freq", "", geno1$marker)
+  genor <- cbind(geno1,geno2)
+  return(genor)
+}
+
+genofreqtidyPre <- calgenofreq2(gedfPre,"Pre")
+genofreqtidyPost <- calgenofreq2(gedfPost,"Post")
+genofreqtidyDam <- data.frame(rbind(genofreqtidyPre, genofreqtidyPost))%>% 
+  mutate(genotype_number=dplyr::case_when(genofreqtype == "Summer Run Homozygote" ~ 0,
+                                   genofreqtype == "Heterozygote" ~ 1,
+                                   genofreqtype == "Winter Run Homozygote" ~2))
+
+genofreqtidyDam$year <- factor(genofreqtidyDam$year,level=c("Pre", "Post"))
+
+plot1 <- genofreqtidyDam %>% ggplot(aes(x=year,y=genofreq,fill=year)) + geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + geom_boxplot(width=0.3,alpha=1)+ facet_grid(.~genofreqtype,labeller = labeller("minor_homo"="Summer Run Homozygote", "major_homo" = "Winter Run Homozygote", "heterozygote"="heterozygote"))+ scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+  theme_classic()+
+  theme(axis.text = element_text(size = 12, face = "bold"), 
+        axis.title = element_text(size = 14, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold"),
+        strip.text.x=element_text(size= 12, face="bold"),
+        plot.margin = unit(c(0,0,0,0),"cm")
+       )+stat_compare_means(method = "anova",label.y=1)+ labs(y="Genotype Frequency", x= "Time",fill="Time")
+
+plot1a <- genofreqtidyDam %>% ggplot(aes(x=year,y=genofreq,fill=year)) + geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + geom_boxplot(width=0.3,alpha=1)+ facet_grid(.~genofreqtype,labeller = labeller("minor_homo"="Summer Run Homozygote", "major_homo" = "Winter Run Homozygote", "heterozygote"="heterozygote"))+ scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+  theme_classic()+
+  theme(axis.text = element_text(size = 12, face = "bold"), 
+        axis.title = element_text(size = 14, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold"),
+        strip.text.x=element_text(size= 12, face="bold"),
+        plot.margin = unit(c(0,0,0,0),"cm"))+stat_compare_means(method = "anova",label.y=1)+ labs(y="Genotype Frequency", x= "Time",fill="Time") + guides(fill="none")
+
+legend1 <- get_legend(plot1)
+legend1a <- get_legend(plot1a)
+#mean <- genofreqtidy %>% group_by(year) %>% group_by(genofreqtype)%>% summarise(average= mean(genofreq)) %>% ungroup()
+```
+
+
+#plot the change of allele freq
+
+```{r}
+#change the format of list 
+allelefreqdf <- function(list){
+                   df <- data.frame(list)
+                   rownames(df)[1] = "major"
+                   rownames(df)[2] = "minor"
+                   return(df)
+}
+aldf <-allelefreqdf(allelefreq)
+aldfPre <- allelefreqdf(allelefreqPre)
+aldfPost <- allelefreqdf(allelefreqPost)
+alleletype <- rep(c("Major","Minor"),13)
+tidyaldfPre <-aldfPre %>% gather(key="marker", value = "allelefreq",c(1:13)) %>% cbind(alleletype) %>% mutate(year="Pre")
+tidyaldfPost <-aldfPost %>% gather(key="marker", value = "allelefreq",c(1:13)) %>% cbind(alleletype) %>% mutate(year="Post")
+tidyaldDam <- rbind(tidyaldfPre, tidyaldfPost)
+tidyaldDam$year <- factor(tidyaldDam$year,level=c("Pre", "Post"))
+
+plot2 <- tidyaldDam %>% ggplot(aes(x=year,y=allelefreq,fill=year)) + geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + geom_boxplot(width=0.3,alpha=1)+ facet_grid(.~alleletype)+ scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+  theme_classic()+
+  theme(axis.text = element_text(size = 12, face = "bold"), 
+        axis.title = element_text(size = 14, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold"),
+        strip.text.x=element_text(size= 12, face="bold"),
+        axis.title.x = element_blank(),
+        plot.margin = unit(c(0,0,0,0),"cm")
+       )+stat_compare_means(method = "anova",label.y=1)+labs(y="Allele Frequency", x= "Time",fill="Time") + guides(fill=F)
+#(alleleoplot <- tidyald %>% ggplot(aes(x=alleletype,y=allelefreq,fill=alleletype))+  geom_boxplot(width=0.3,alpha=1) +
+ #   geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + theme_classic() + labs(x="Allele", y= "Allele Frequency") +
+  #scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+ 
+  #scale_y_continuous(breaks=seq(0.1,1,0.1))+
+  #guides(fill= F) + 
+  #theme(axis.text = element_text(size = 12, face = "bold"), 
+    #    axis.title = element_text(size = 14, face = "bold"), 
+     #   axis.line = element_line(size = 1.2),
+      #  axis.title.y = element_text(angle = 90),
+       # legend.position = "bottom", 
+        #legend.box = "horizontal", 
+        #legend.title = element_text(face = "bold", size = 16), 
+        #legend.text = element_text(size = 13, face = "bold"),
+      #  plot.title = element_text(size = 18, face = "bold")))
+#(alplotin <- rbind(tidyaldf2014,tidyaldf2015,tidyaldf2016,tidyaldf2017,tidyaldf2018))
+#alplotin %>% ggplot(aes(x=year,y=allelefreq,group=alleletype)) + 
+ # geom_line(aes(color= alleletype), size=0.8) + 
+#  geom_point(aes(color=alleletype), size=1.2) + 
+ # facet_wrap(.~marker)+theme_classic() + scale_color_manual(values = c("#e688a1","#e3c878"))
+#allelegenoplot <- plot_grid(genoplot,alleleoplot)
+freqplot <- plot_grid(plot2,plot1a, align="h",axis = "lr", ncol= 1, labels = "AUTO")
+freqplot_legend <- plot_grid(freqplot,legend1,nrow = 2,rel_heights = c(1,0.1))
+```
+
+#plot the change of late/early allele freq
+
+```{r}
+#Function and for loop are not working so just manually make early/late allele frequency matrices
+gemxPre <- as.matrix(gedfPre)
+aldf_el_Pre <- matrix(nrow=2, ncol=13)
+  rownames(aldf_el_Pre)=c("early","late")
+  colnames(aldf_el_Pre)=substr(colnames(gemxPre)[c(2,4,6,8,10,12,14,16,18,20,22,24,26)],1,nchar(colnames(gemxPre)[c(2,4,6,8,10,12,14,16,18,20,22,24,26)])-5)
+  aldf_el_Pre[1,1]=as.numeric(gemxPre[1,2])+1/2*as.numeric(gemxPre[2,2])
+  aldf_el_Pre[2,1]=as.numeric(gemxPre[3,2])+1/2*as.numeric(gemxPre[2,2])
+  aldf_el_Pre[1,2]=as.numeric(gemxPre[1,4])+1/2*as.numeric(gemxPre[2,4])
+  aldf_el_Pre[2,2]=as.numeric(gemxPre[3,4])+1/2*as.numeric(gemxPre[2,4])
+  aldf_el_Pre[1,3]=as.numeric(gemxPre[1,6])+1/2*as.numeric(gemxPre[2,6])
+  aldf_el_Pre[2,3]=as.numeric(gemxPre[3,6])+1/2*as.numeric(gemxPre[2,6])
+  aldf_el_Pre[1,4]=as.numeric(gemxPre[1,8])+1/2*as.numeric(gemxPre[2,8])
+  aldf_el_Pre[2,4]=as.numeric(gemxPre[3,8])+1/2*as.numeric(gemxPre[2,8])
+  aldf_el_Pre[1,5]=as.numeric(gemxPre[1,10])+1/2*as.numeric(gemxPre[2,10])
+  aldf_el_Pre[2,5]=as.numeric(gemxPre[3,10])+1/2*as.numeric(gemxPre[2,10])
+  aldf_el_Pre[1,6]=as.numeric(gemxPre[1,12])+1/2*as.numeric(gemxPre[2,12])
+  aldf_el_Pre[2,6]=as.numeric(gemxPre[3,12])+1/2*as.numeric(gemxPre[2,12])
+  aldf_el_Pre[1,7]=as.numeric(gemxPre[1,14])+1/2*as.numeric(gemxPre[2,14])
+  aldf_el_Pre[2,7]=as.numeric(gemxPre[3,14])+1/2*as.numeric(gemxPre[2,14])
+  aldf_el_Pre[1,8]=as.numeric(gemxPre[1,16])+1/2*as.numeric(gemxPre[2,16])
+  aldf_el_Pre[2,8]=as.numeric(gemxPre[3,16])+1/2*as.numeric(gemxPre[2,16])
+  aldf_el_Pre[1,9]=as.numeric(gemxPre[1,18])+1/2*as.numeric(gemxPre[2,18])
+  aldf_el_Pre[2,9]=as.numeric(gemxPre[3,18])+1/2*as.numeric(gemxPre[2,18])
+  aldf_el_Pre[1,10]=as.numeric(gemxPre[1,20])+1/2*as.numeric(gemxPre[2,20])
+  aldf_el_Pre[2,10]=as.numeric(gemxPre[3,20])+1/2*as.numeric(gemxPre[2,20])
+  aldf_el_Pre[1,11]=as.numeric(gemxPre[1,22])+1/2*as.numeric(gemxPre[2,22])
+  aldf_el_Pre[2,11]=as.numeric(gemxPre[3,22])+1/2*as.numeric(gemxPre[2,22])
+  aldf_el_Pre[1,12]=as.numeric(gemxPre[1,24])+1/2*as.numeric(gemxPre[2,24])
+  aldf_el_Pre[2,12]=as.numeric(gemxPre[3,24])+1/2*as.numeric(gemxPre[2,24])
+  aldf_el_Pre[1,13]=as.numeric(gemxPre[1,26])+1/2*as.numeric(gemxPre[2,26])
+  aldf_el_Pre[2,13]=as.numeric(gemxPre[3,26])+1/2*as.numeric(gemxPre[2,26])
+
+gemxPost <- as.matrix(gedfPost)
+aldf_el_Post <- matrix(nrow=2, ncol=13)
+  rownames(aldf_el_Post)=c("early","late")
+  colnames(aldf_el_Post)=substr(colnames(gemxPost)[c(2,4,6,8,10,12,14,16,18,20,22,24,26)],1,nchar(colnames(gemxPost)[c(2,4,6,8,10,12,14,16,18,20,22,24,26)])-5)
+  aldf_el_Post[1,1]=as.numeric(gemxPost[1,2])+1/2*as.numeric(gemxPost[2,2])
+  aldf_el_Post[2,1]=as.numeric(gemxPost[3,2])+1/2*as.numeric(gemxPost[2,2])
+  aldf_el_Post[1,2]=as.numeric(gemxPost[1,4])+1/2*as.numeric(gemxPost[2,4])
+  aldf_el_Post[2,2]=as.numeric(gemxPost[3,4])+1/2*as.numeric(gemxPost[2,4])
+  aldf_el_Post[1,3]=as.numeric(gemxPost[1,6])+1/2*as.numeric(gemxPost[2,6])
+  aldf_el_Post[2,3]=as.numeric(gemxPost[3,6])+1/2*as.numeric(gemxPost[2,6])
+  aldf_el_Post[1,4]=as.numeric(gemxPost[1,8])+1/2*as.numeric(gemxPost[2,8])
+  aldf_el_Post[2,4]=as.numeric(gemxPost[3,8])+1/2*as.numeric(gemxPost[2,8])
+  aldf_el_Post[1,5]=as.numeric(gemxPost[1,10])+1/2*as.numeric(gemxPost[2,10])
+  aldf_el_Post[2,5]=as.numeric(gemxPost[3,10])+1/2*as.numeric(gemxPost[2,10])
+  aldf_el_Post[1,6]=as.numeric(gemxPost[1,12])+1/2*as.numeric(gemxPost[2,12])
+  aldf_el_Post[2,6]=as.numeric(gemxPost[3,12])+1/2*as.numeric(gemxPost[2,12])
+  aldf_el_Post[1,7]=as.numeric(gemxPost[1,14])+1/2*as.numeric(gemxPost[2,14])
+  aldf_el_Post[2,7]=as.numeric(gemxPost[3,14])+1/2*as.numeric(gemxPost[2,14])
+  aldf_el_Post[1,8]=as.numeric(gemxPost[1,16])+1/2*as.numeric(gemxPost[2,16])
+  aldf_el_Post[2,8]=as.numeric(gemxPost[3,16])+1/2*as.numeric(gemxPost[2,16])
+  aldf_el_Post[1,9]=as.numeric(gemxPost[1,18])+1/2*as.numeric(gemxPost[2,18])
+  aldf_el_Post[2,9]=as.numeric(gemxPost[3,18])+1/2*as.numeric(gemxPost[2,18])
+  aldf_el_Post[1,10]=as.numeric(gemxPost[1,20])+1/2*as.numeric(gemxPost[2,20])
+  aldf_el_Post[2,10]=as.numeric(gemxPost[3,20])+1/2*as.numeric(gemxPost[2,20])
+  aldf_el_Post[1,11]=as.numeric(gemxPost[1,22])+1/2*as.numeric(gemxPost[2,22])
+  aldf_el_Post[2,11]=as.numeric(gemxPost[3,22])+1/2*as.numeric(gemxPost[2,22])
+  aldf_el_Post[1,12]=as.numeric(gemxPost[1,24])+1/2*as.numeric(gemxPost[2,24])
+  aldf_el_Post[2,12]=as.numeric(gemxPost[3,24])+1/2*as.numeric(gemxPost[2,24])
+  aldf_el_Post[1,13]=as.numeric(gemxPost[1,26])+1/2*as.numeric(gemxPost[2,26])
+  aldf_el_Post[2,13]=as.numeric(gemxPost[3,26])+1/2*as.numeric(gemxPost[2,26])
+
+alleletype_el <- rep(c("Early","Late"),13)
+tidyaldf_el_Pre <-as.data.frame(aldf_el_Pre) %>% gather(key="marker", value = "allelefreq",c(1:13)) %>% cbind(alleletype_el) %>% mutate(year="Pre")
+tidyaldf_el_Post <-as.data.frame(aldf_el_Post) %>% gather(key="marker", value = "allelefreq",c(1:13)) %>% cbind(alleletype_el) %>% mutate(year="Post")
+tidyald_el_Dam <- rbind(tidyaldf_el_Pre, tidyaldf_el_Post)
+tidyald_el_Dam$year <- factor(tidyald_el_Dam$year,level=c("Pre", "Post"))
+
+plot3 <- tidyald_el_Dam %>% ggplot(aes(x=year,y=allelefreq,fill=year)) + geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + geom_boxplot(width=0.3,alpha=1)+ facet_grid(.~alleletype_el)+ scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+  theme_classic()+
+  theme(axis.text = element_text(size = 12, face = "bold"), 
+        axis.title = element_text(size = 14, face = "bold"), 
+        axis.line = element_line(size = 1.2),
+        axis.title.y = element_text(angle = 90),
+        legend.position = "bottom", 
+        legend.box = "horizontal", 
+        legend.title = element_text(face = "bold", size = 16), 
+        legend.text = element_text(size = 13, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold"),
+        strip.text.x=element_text(size= 12, face="bold"),
+        axis.title.x = element_blank(),
+        plot.margin = unit(c(0,0,0,0),"cm")
+       )+stat_compare_means(method = "anova",label.y=1)+labs(y="Allele Frequency", x= "Time",fill="Time") + guides(fill=F)
+#(alleleoplot <- tidyald %>% ggplot(aes(x=alleletype,y=allelefreq,fill=alleletype))+  geom_boxplot(width=0.3,alpha=1) +
+ #   geom_point(position=position_jitter(0.05),alpha=0.7,size=3, shape=21) + theme_classic() + labs(x="Allele", y= "Allele Frequency") +
+  #scale_fill_manual(values=c("#A9AFD1", "#9D5C63","#29335C"))+ 
+  #scale_y_continuous(breaks=seq(0.1,1,0.1))+
+  #guides(fill= F) + 
+  #theme(axis.text = element_text(size = 12, face = "bold"), 
+    #    axis.title = element_text(size = 14, face = "bold"), 
+     #   axis.line = element_line(size = 1.2),
+      #  axis.title.y = element_text(angle = 90),
+       # legend.position = "bottom", 
+        #legend.box = "horizontal", 
+        #legend.title = element_text(face = "bold", size = 16), 
+        #legend.text = element_text(size = 13, face = "bold"),
+      #  plot.title = element_text(size = 18, face = "bold")))
+#(alplotin <- rbind(tidyaldf2014,tidyaldf2015,tidyaldf2016,tidyaldf2017,tidyaldf2018))
+#alplotin %>% ggplot(aes(x=year,y=allelefreq,group=alleletype)) + 
+ # geom_line(aes(color= alleletype), size=0.8) + 
+#  geom_point(aes(color=alleletype), size=1.2) + 
+ # facet_wrap(.~marker)+theme_classic() + scale_color_manual(values = c("#e688a1","#e3c878"))
+#allelegenoplot <- plot_grid(genoplot,alleleoplot)
+freqplot_el <- plot_grid(plot3,plot1a, align="h",axis = "lr", ncol= 1, labels = "AUTO")
+freqplot_el_legend <- plot_grid(freqplot_el,legend1,nrow = 2,rel_heights = c(1,0.1))
+```

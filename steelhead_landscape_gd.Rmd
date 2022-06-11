@@ -1,0 +1,94 @@
+---
+title: "step4_steelhead_landscape_gd"
+author: "Jong Yoon Jeon"
+date: "6/3/2022"
+output: github_document
+---
+
+##Load libraries
+```{r}
+library(adegenet)
+library(dplyr)
+library(tidyverse)
+library(readr)
+library(readxl)
+library(tibble)
+library(vcfR)
+```
+
+##Load necessary data
+```{r}
+snp <- read_csv("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/SNP_Coordinates_CRITFC.csv")
+Locus_Key <- read_excel("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Steelhead_genotype/Steelhead_Locus_Key.xlsx")
+for (i in 1:nrow(Locus_Key)){
+  Locus_Key$SnpPos[i] <- snp %>% filter(Locus == Locus_Key[i,]$`SNPPIT or Alias`) %>% dplyr::select(SNP)
+}
+Locus_Key$SnpPos <- gsub("\\.1", "_1", Locus_Key$SnpPos) # Replace ".' to "_" in loci names
+```
+
+##Use data dgenind_post produced from step1 and Filter neutral and (run-time) adaptive loci each
+```{r}
+#Adaptive loci information to remove later from the loci used for Ne input
+snp_adaptive <- Locus_Key %>% filter(grepl('Adaptive', Locus_Key$`SNPeff Annotation output`))
+snp_adaptive <- snp_adaptive[c(1:112),] #Remove loci without name (character(0))
+
+#Load information of markers used for Ne input
+toKeep_raw <- read_csv("C:/Users/jyj55/Desktop/LGC-DGS_2022/Team_project/Analysis/Steelhead analysis/omy_loci4genstr_outflank_hwe_oneadapt.csv")
+toKeep_raw <- toKeep_raw[,-1]
+toKeep <- toKeep_raw[,c(1:263)]
+colnames(toKeep) <- gsub("\\.", "_", colnames(toKeep)) # Replace ".' to "_" in loci names
+toKeep_neutraloneadapt <- colnames(toKeep)
+neutral_snp_toKeep <- toKeep_neutraloneadapt[!(toKeep_neutraloneadapt %in% snp_adaptive$SnpPos)]
+
+#Filter run-timing markers
+snp_runtiming <- Locus_Key %>% filter(grepl('Run Timing', Locus_Key$`SNPeff Annotation output`))
+snp_runtiming <- snp_runtiming[c(1:13),] #Remove loci without name (character(0))
+runtiming_snp_tokeep <- snp_runtiming$SnpPos
+
+#Filter genind object based on filtered loci
+dgenind_post_neutral <- dgenind_post[loc = neutral_snp_toKeep]
+dgenind_post_adaptive <- dgenind_post[loc = runtiming_snp_tokeep]
+```
+
+##Generate genetic distance matrices (Dps)
+```{r}
+steelhead_neutral_dps <- 1 - propShared(dgenind_post_neutral)
+saveRDS(steelhead_neutral_dps, file = paste0("steelhead_Post_neutral_dps.rds"))
+steelhead_adaptive_dps <- 1 - propShared(dgenind_post_adaptive)
+saveRDS(steelhead_adaptive_dps, file = paste0("steelhead_Post_adaptive_dps.rds"))
+```
+
+Run Garrett's "Run_Timing_GTscoreFormat.Rmd" and fastPHASE.
+
+##Load data and pacakges to run R package "radish"
+```{r}
+if(!requireNamespace("corMLPE", quietly = TRUE)) remotes::install_github("nspope/corMLPE")
+if(!requireNamespace("radish", quietly = TRUE)) remotes::install_github("nspope/radish")
+library(radish)
+library(raster)
+covariates <- readRDS("raster_env_stack.RDS")
+cn_neutral_gd <- readRDS("Chinook_genedist_neutral.rds")
+cn_adaptivel_gd <- readRDS("Chinook_gendist_adaptive.rds")
+sh_neutral_gd <- readRDS("steelhead_Post_neutral_dps.rds")
+sh_adaptive_gd < readRDS("steelhead_Post_adaptive_dps.rds")
+```
+
+##Model fitting by running R package "radish"
+```{r}
+scale_covs <- stack(scale(covariates)) ## Must be a raster stack
+sites <- read.csv("Elwha_PostDam.csv")
+sites_coords <- SpatialPoints(coords = sites[,2:3], proj4string = CRS(as.character(NA)))
+surface <- conductance_surface(covariates = scale_covs,
+                               coords = sites_coords,
+                               directions = 8)
+
+cn_neutral_mlpe <- radish(cn_neutral_gd ~ tworks_flow + aug_st_temp,
+                   data = surface, 
+                   conductance_model = radish::loglinear_conductance, 
+                   measurement_model = radish::mlpe)
+
+summary(cn_neutral_mlpe)
+
+plot(fitted(cn_neutral_mlpe, "distance"), cn_neutral_gd, pch = 19,
+     xlab = "Optimized resistance distance", ylab = "neutral_gd")
+```

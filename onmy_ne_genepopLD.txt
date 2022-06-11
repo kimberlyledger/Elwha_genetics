@@ -1,12 +1,12 @@
 Output from NeEstimator v2.1
-Starting time: Mon May 02 03:09:47 2022
+Starting time: Mon May 02 16:43:43 2022
 Input File: "onmy_ne_genepop.txt"
 
 Number of Loci = 226
 
-Non-polymorphic loci:     4,     6,    14,    50,    65,    66,    71,   113,
-          126,   138,   144,   148,   157,   158,   169,   174,   199,   211
-Total non-polymorphic = 18
+Non-polymorphic loci:     4,     6,    14,    50,    66,    71,   113,   126,
+          138,   144,   157,   158,   169,   211
+Total non-polymorphic = 14
 
 LD mating model: Random
 
@@ -18,22 +18,22 @@ Lowest Allele Frequency Used     0.050       0.020       0.010         0+
 
 LINKAGE DISEQUILIBRIUM METHOD
 
-Harmonic Mean Sample Size =       16.4        16.7        16.8        16.8
-Independent Comparisons =      17668       20100       20544       20544
-OverAll r^2 =                 0.037640    0.038039    0.038075    0.038075
-Expected r^2 Sample =         0.037572    0.038077    0.038127    0.038127
-Estimated Ne^ =                 4513.0    Infinite    Infinite    Infinite
+Harmonic Mean Sample Size =       16.3        16.6        16.7        16.7
+Independent Comparisons =      18362       20880       21327       21327
+OverAll r^2 =                 0.037780    0.038178    0.038208    0.038208
+Expected r^2 Sample =         0.037761    0.038289    0.038333    0.038333
+Estimated Ne^ =                16458.7    Infinite    Infinite    Infinite
 
 95% CIs for Ne^
-* Parametric                     354.1       428.0       441.4       441.4
+* Parametric                     381.6       485.1       502.9       502.9
                               Infinite    Infinite    Infinite    Infinite
 
-* JackKnife on Samples           104.5       103.9       103.5       103.5
+* JackKnife on Samples           108.6       107.0       106.5       106.5
                               Infinite    Infinite    Infinite    Infinite
 
 **************************************************************************
-Non-polymorphic loci:    14,    65,   144,   148,   174,   199
-Total non-polymorphic = 6
+Non-polymorphic loci:    14,   144
+Total non-polymorphic = 2
 
 
 Population     2 [Post_AD_51761_17_023]  (Number of Individuals = 411)
@@ -45,24 +45,24 @@ Lowest Allele Frequency Used     0.050       0.020       0.010         0+
 LINKAGE DISEQUILIBRIUM METHOD
 
 Harmonic Mean Sample Size =      392.5       392.3       392.2       390.4
-Independent Comparisons =      19069       21945       23005       23980
-OverAll r^2 =                 0.004376    0.004391    0.004406    0.004422
+Independent Comparisons =      19660       22791       23871       24863
+OverAll r^2 =                 0.004368    0.004375    0.004390    0.004405
 Expected r^2 Sample =         0.002557    0.002559    0.002560    0.002567
-Estimated Ne^ =                  181.2       179.8       178.5       177.6
+Estimated Ne^ =                  182.0       181.4       180.1       179.3
 
 95% CIs for Ne^
-* Parametric                     172.6       171.9       170.9       170.2
-                                 190.4       188.2       186.6       185.5
+* Parametric                     173.5       173.6       172.5       171.8
+                                 191.1       189.8       188.1       187.1
 
-* JackKnife on Samples           156.6       156.5       155.7       154.2
-                                 211.4       208.1       206.0       206.1
+* JackKnife on Samples           157.5       158.0       157.2       155.8
+                                 212.1       209.8       207.7       207.8
 
 **************************************************************************
-Non-polymorphic loci:    50,    65,   148,   169,   174,   199
-Total non-polymorphic = 6
+Non-polymorphic loci:    50,   169
+Total non-polymorphic = 2
 
 
-Population     3 [Post_BD_51029_E12_163]  (Number of Individuals = 445)
+Population     3 [Post_BD_5129_E12_163]  (Number of Individuals = 445)
 ****************
 --------------------------------------------------------------------------
 Lowest Allele Frequency Used     0.050       0.020       0.010         0+
@@ -70,22 +70,22 @@ Lowest Allele Frequency Used     0.050       0.020       0.010         0+
 
 LINKAGE DISEQUILIBRIUM METHOD
 
-Harmonic Mean Sample Size =      385.3       385.8       384.7       383.2
-Independent Comparisons =      18244       21526       22577       24042
-OverAll r^2 =                 0.003520    0.003443    0.003433    0.003395
-Expected r^2 Sample =         0.002566    0.002565    0.002572    0.002580
-Estimated Ne^ =                  347.4       377.6       385.1       406.8
+Harmonic Mean Sample Size =      385.4       385.6       384.4       383.0
+Independent Comparisons =      18786       22364       23435       24926
+OverAll r^2 =                 0.003523    0.003447    0.003439    0.003402
+Expected r^2 Sample =         0.002566    0.002567    0.002574    0.002582
+Estimated Ne^ =                  346.6       376.6       383.1       404.5
 
 95% CIs for Ne^
-* Parametric                     322.4       351.1       358.2       378.1
-                                 375.5       407.6       415.3       439.2
+* Parametric                     322.0       350.6       356.9       376.6
+                                 374.2       405.8       412.6       436.0
 
-* JackKnife on Samples           288.8       315.6       321.6       338.9
-                                 427.3       461.9       471.5       500.2
+* JackKnife on Samples           287.5       314.3       319.6       336.5
+                                 427.4       461.4       469.9       498.2
 
 **************************************************************************
-Non-polymorphic loci:    14,    65,   148,   169,   174,   199,   211
-Total non-polymorphic = 7
+Non-polymorphic loci:    14,   169,   211
+Total non-polymorphic = 3
 
 
 Population     4 [Post_ID_51686_108]  (Number of Individuals = 53)
@@ -96,27 +96,26 @@ Lowest Allele Frequency Used     0.050       0.020       0.010         0+
 
 LINKAGE DISEQUILIBRIUM METHOD
 
-Harmonic Mean Sample Size =       50.2        50.1        50.0        50.1
-Independent Comparisons =      18324       21899       23174       23820
-OverAll r^2 =                 0.021533    0.021572    0.021612    0.021687
-Expected r^2 Sample =         0.021037    0.021073    0.021098    0.021094
-Estimated Ne^ =                  670.7       666.6       646.6       560.0
+Harmonic Mean Sample Size =       50.1        50.1        50.0        50.0
+Independent Comparisons =      19095       22745       24042       24700
+OverAll r^2 =                 0.021606    0.021636    0.021673    0.021756
+Expected r^2 Sample =         0.021063    0.021097    0.021121    0.021116
+Estimated Ne^ =                  611.8       616.2       601.5       518.3
 
 95% CIs for Ne^
-* Parametric                     351.3       364.9       363.1       335.3
-                                5440.0      3328.9      2649.6      1594.4
+* Parametric                     337.0       351.7       350.7       321.7
+                                2869.8      2267.2      1958.8      1271.0
 
-* JackKnife on Samples           236.9       231.9       232.9       218.0
+* JackKnife on Samples           229.5       226.0       226.8       211.6
                               Infinite    Infinite    Infinite    Infinite
 
 **************************************************************************
 Non-polymorphic loci:     4,     6,     7,     8,    13,    14,    16,    24,
-           25,    26,    27,    44,    50,    65,    66,    69,    70,    87,
-           93,    95,   103,   105,   108,   110,   111,   112,   126,   127,
-          128,   132,   138,   144,   148,   149,   150,   153,   157,   158,
-          162,   163,   169,   174,   181,   185,   195,   197,   199,   211,
-          213,   216
-Total non-polymorphic = 50
+           25,    26,    27,    44,    50,    66,    69,    70,    87,    93,
+           95,   103,   105,   108,   110,   111,   112,   126,   127,   128,
+          132,   138,   144,   148,   149,   150,   153,   157,   158,   162,
+          163,   169,   174,   181,   185,   195,   197,   211,   213,   216
+Total non-polymorphic = 48
 
 
 Population     5 [Post_SBLR_52331_1]  (Number of Individuals = 25)
@@ -128,22 +127,21 @@ Lowest Allele Frequency Used     0.050       0.020       0.010         0+
 LINKAGE DISEQUILIBRIUM METHOD
 
 Harmonic Mean Sample Size =       22.6        22.6        22.6        22.6
-Independent Comparisons =      11691       14892       14892       14892
-OverAll r^2 =                 0.056442    0.056022    0.056022    0.056022
-Expected r^2 Sample =         0.050425    0.050360    0.050360    0.050360
-Estimated Ne^ =                   49.4        52.7        52.7        52.7
+Independent Comparisons =      11998       15241       15241       15241
+OverAll r^2 =                 0.056401    0.055968    0.055968    0.055968
+Expected r^2 Sample =         0.050419    0.050356    0.050356    0.050356
+Estimated Ne^ =                   49.7        53.1        53.1        53.1
 
 95% CIs for Ne^
-* Parametric                      39.3        42.5        42.5        42.5
-                                  65.3        68.1        68.1        68.1
+* Parametric                      39.7        42.9        42.9        42.9
+                                  65.5        68.7        68.7        68.7
 
-* JackKnife on Samples            23.7        25.3        25.3        25.3
-                                 388.0       421.6       421.6       421.6
+* JackKnife on Samples            23.7        25.5        25.5        25.5
+                                 402.8       434.8       434.8       434.8
 
 **************************************************************************
-Non-polymorphic loci:    14,    50,    65,   144,   148,   149,   169,   174,
-          199
-Total non-polymorphic = 9
+Non-polymorphic loci:    14,    50,   144,   149,   169
+Total non-polymorphic = 5
 
 
 Population     6 [Pre_AD_33695_022]  (Number of Individuals = 166)
@@ -154,26 +152,25 @@ Lowest Allele Frequency Used     0.050       0.020       0.010         0+
 
 LINKAGE DISEQUILIBRIUM METHOD
 
-Harmonic Mean Sample Size =      153.7       153.9       153.9       154.0
-Independent Comparisons =      19618       22358       22677       23430
-OverAll r^2 =                 0.008521    0.008507    0.008492    0.008424
-Expected r^2 Sample =         0.006584    0.006578    0.006579    0.006577
-Estimated Ne^ =                  170.0       170.7       172.2       178.4
+Harmonic Mean Sample Size =      153.8       154.0       153.9       154.0
+Independent Comparisons =      20210       23211       23535       24304
+OverAll r^2 =                 0.008498    0.008466    0.008451    0.008386
+Expected r^2 Sample =         0.006581    0.006576    0.006578    0.006576
+Estimated Ne^ =                  171.8       174.3       175.8       182.1
 
 95% CIs for Ne^
-* Parametric                     156.0       157.5       158.8       164.4
-                                 186.1       185.8       187.5       194.4
+* Parametric                     157.8       160.8       162.3       167.9
+                                 188.0       189.7       191.4       198.4
 
-* JackKnife on Samples           116.1       114.6       115.7       119.9
-                                 281.6       292.1       294.4       305.5
+* JackKnife on Samples           117.1       116.9       118.0       122.3
+                                 286.2       299.5       302.0       313.1
 
 **************************************************************************
-Non-polymorphic loci:     4,    14,    50,    65,    66,   144,   148,   169,
-          174,   199
-Total non-polymorphic = 10
+Non-polymorphic loci:     4,    14,    50,    66,   144,   169
+Total non-polymorphic = 6
 
 
-Population     7 [Pre_BD_33869_C01_03]  (Number of Individuals = 89)
+Population     7 [Pre_BD_33869_C1_3]  (Number of Individuals = 89)
 ****************
 --------------------------------------------------------------------------
 Lowest Allele Frequency Used     0.050       0.020       0.010         0+
@@ -181,23 +178,22 @@ Lowest Allele Frequency Used     0.050       0.020       0.010         0+
 
 LINKAGE DISEQUILIBRIUM METHOD
 
-Harmonic Mean Sample Size =       65.1        65.3        64.9        64.9
-Independent Comparisons =      20000       22139       22756       23200
-OverAll r^2 =                 0.016024    0.015993    0.016067    0.016091
-Expected r^2 Sample =         0.015171    0.015135    0.015190    0.015208
-Estimated Ne^ =                  389.0       386.6       378.1       375.7
+Harmonic Mean Sample Size =       65.0        65.2        64.9        64.8
+Independent Comparisons =      20604       22775       23401       24070
+OverAll r^2 =                 0.016051    0.016020    0.016107    0.016096
+Expected r^2 Sample =         0.015189    0.015152    0.015207    0.015234
+Estimated Ne^ =                  384.7       382.3       368.5       384.6
 
 95% CIs for Ne^
-* Parametric                     282.6       285.3       281.3       280.6
-                                 612.0       589.1       567.0       559.5
+* Parametric                     281.3       283.9       276.7       286.9
+                                 597.1       575.6       542.9       574.4
 
-* JackKnife on Samples           162.0       166.9       164.4       163.2
+* JackKnife on Samples           161.1       165.7       162.2       164.1
                               Infinite    Infinite    Infinite    Infinite
 
 **************************************************************************
-Non-polymorphic loci:     4,    24,    50,    65,   144,   148,   158,   169,
-          174,   199
-Total non-polymorphic = 10
+Non-polymorphic loci:     4,    24,    50,   144,   158,   169
+Total non-polymorphic = 6
 
 
 Population     8 [Pre_ID_33649_17]  (Number of Individuals = 152)
@@ -208,23 +204,22 @@ Lowest Allele Frequency Used     0.050       0.020       0.010         0+
 
 LINKAGE DISEQUILIBRIUM METHOD
 
-Harmonic Mean Sample Size =      140.2       140.1       139.7       139.7
-Independent Comparisons =      18784       21879       22737       23219
-OverAll r^2 =                 0.013611    0.013243    0.013154    0.013029
-Expected r^2 Sample =         0.007213    0.007216    0.007234    0.007233
-Estimated Ne^ =                   49.9        53.2        54.2        55.4
+Harmonic Mean Sample Size =      140.1       140.1       139.7       139.7
+Independent Comparisons =      19361       22717       23596       24089
+OverAll r^2 =                 0.013452    0.013078    0.013001    0.012885
+Expected r^2 Sample =         0.007216    0.007218    0.007235    0.007235
+Estimated Ne^ =                   51.3        54.7        55.7        56.8
 
 95% CIs for Ne^
-* Parametric                      47.8        50.9        51.9        53.1
-                                  52.3        55.5        56.5        57.8
+* Parametric                      49.1        52.5        53.4        54.5
+                                  53.7        57.1        58.1        59.3
 
-* JackKnife on Samples            37.4        40.2        41.0        41.9
-                                  68.1        71.8        73.1        74.9
+* JackKnife on Samples            38.5        41.4        42.2        43.0
+                                  69.9        74.0        75.2        76.9
 
 **************************************************************************
-Non-polymorphic loci:     4,    14,    50,    65,   148,   158,   169,   174,
-          199,   211
-Total non-polymorphic = 10
+Non-polymorphic loci:     4,    14,    50,   158,   169,   211
+Total non-polymorphic = 6
 
 
 Population     9 [Pre_SBLR_33651_101]  (Number of Individuals = 81)
@@ -235,21 +230,21 @@ Lowest Allele Frequency Used     0.050       0.020       0.010         0+
 
 LINKAGE DISEQUILIBRIUM METHOD
 
-Harmonic Mean Sample Size =       68.7        68.7        68.7        68.5
-Independent Comparisons =      19873       22546       22994       23217
-OverAll r^2 =                 0.020722    0.020450    0.020328    0.020319
-Expected r^2 Sample =         0.015086    0.015096    0.015091    0.015117
-Estimated Ne^ =                   57.0        60.1        61.5        61.9
+Harmonic Mean Sample Size =       68.8        68.7        68.7        68.6
+Independent Comparisons =      20274       23392       23859       24086
+OverAll r^2 =                 0.020691    0.020346    0.020228    0.020218
+Expected r^2 Sample =         0.015083    0.015098    0.015093    0.015119
+Estimated Ne^ =                   57.3        61.4        62.8        63.2
 
 95% CIs for Ne^
-* Parametric                      52.9        56.0        57.2        57.6
-                                  61.5        64.8        66.3        66.8
+* Parametric                      53.2        57.1        58.4        58.8
+                                  61.8        66.1        67.6        68.1
 
-* JackKnife on Samples            34.8        37.5        38.2        38.7
-                                 111.9       114.3       118.4       117.8
+* JackKnife on Samples            35.0        38.2        39.0        39.6
+                                 112.3       117.4       120.9       120.3
 
 **************************************************************************
 
-Ending time: Mon May 02 03:10:03 2022
+Ending time: Mon May 02 16:44:02 2022
 -------------------------------------
 
