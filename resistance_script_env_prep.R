@@ -1,6 +1,6 @@
 #script for rasterize and other environmental data prep
-# devtools::install_github("nspope/corMLPE")
-# devtools::install_github("nspope/radish")
+#devtools::install_github("nspope/corMLPE")
+#devtools::install_github("nspope/radish")
 
 library(corMLPE)
 library(radish)
@@ -56,37 +56,62 @@ norwest_repro <- st_transform(norwest, st_crs(elwha))
 norwest_crop <- st_crop(norwest_repro, elwha)
 tworks_crop <- st_crop(tworks_repro, elwha)
 
+#edit elwha to drop M/Z for ggplot
+elwha_plot <- st_zm(elwha, drop = TRUE, what = "ZM")
+
 #check cropped norwest
 ggplot() +
-  geom_sf(data = tworks_crop, size = 1, color = "blue") +
-  geom_sf(data = norwest_crop, size = 1, color = "black") +
+  #geom_sf(data = tworks_crop, size = 1, color = "blue") +
+  geom_sf(data = elwha_plot, size = 2, color = "blue")+
+  geom_sf(data = norwest_crop, size = 1, color = "green") +
   ggtitle("AOI Boundary Plot") +
   coord_sf() +
   theme_bw()
 
+#check for NA / -9999
+as.data.frame(norwest_crop) %>%
+  filter(S2_02_11 == "-9999") %>%
+  tally()
+
+as.data.frame(norwest_crop) %>%
+  filter(S36_2015 == "-9999") %>%
+  tally()
+
+#need to turn -9999 into NA
+# norwest_crop1 <- norwest_crop
+# norwest_crop1$S2_02_11[norwest_crop1$S2_02_11=="-9999"]<-"NA"
+
+#make numeric again
+# norwest_crop1$S2_02_11 <- as.numeric(norwest_crop1$S2_02_11)
+  
+#fill with above row might be useful later
+#df1$x2<-df1$x2[match(df1$x1,df1$x1)]
 
 ####next is create a raster from each of the values we are interested in
 
 #make spatvector
-norwest_crop <- vect(norwest_crop)
+norwest_crop1 <- vect(norwest_crop)
+norwest_crop1$S36_2015[norwest_crop1$S36_2015=="-9999"]<-"NA"
+norwest_crop1$S36_2015 <- as.numeric(norwest_crop1$S36_2015)
 
 #make raster template
-ra <- rast(norwest_crop)
+ra <- rast(norwest_crop1)
 
 #set resolution of raster template
 res(ra) <- 1/1000
 
 #and then rasterize
-aug_st_temp <- terra::rasterize(norwest_crop, ra, field = "S2_02_11")
+aug_st_temp <- terra::rasterize(norwest_crop1, ra, field = "S36_2015")
 
 #df for ggplot
 aug_st_temp_df <- as.data.frame(aug_st_temp, xy = TRUE)
 
 #plot to check
 ggplot() +
-  geom_raster(data = aug_st_temp_df, aes(x = x, y = y, fill = S2_02_11)) +
+  #geom_sf(data = elwha_plot, size = 1.75, color = "blue")+
+  geom_raster(data = aug_st_temp_df, aes(x = x, y = y, fill = S36_2015)) +
   scale_fill_continuous(type = "viridis", na.value = "white") +
-  ggtitle("S2_02_11") +
+  ggtitle("S36_2015") +
   coord_sf() +
   theme_bw()
 
