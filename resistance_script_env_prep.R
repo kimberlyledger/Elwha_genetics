@@ -128,7 +128,7 @@ tworks_flow_df <- as.data.frame(tworks_flow, xy = TRUE)
 ggplot() +
   geom_raster(data = tworks_flow_df, aes(x = x, y = y, fill = FlowVel)) +
   scale_fill_continuous(type = "viridis", na.value = "white") +
-  ggtitle("S2_02_11") +
+  ggtitle("TWorks Flow") +
   coord_sf() +
   theme_bw()
 
@@ -136,39 +136,48 @@ ggplot() +
 
 #this all works, so now just need to pull in other pieces
 #and then rasterize
+#return to original format after the checks from above
+norwest_crop <- st_crop(norwest_repro, elwha)
+norwest_crop <- vect(norwest_crop)
+tworks_crop <- st_crop(tworks_repro, elwha)
+tworks_crop <- vect(tworks_crop)
+#CANOPY, and 2015 Stream Temp (from NorWeST) and FlowVel, OUT_DIST, BFQ, IP_Steelhd, and IP_Chinook from TerrainWorks
 tworks_flow <- terra::rasterize(tworks_crop, ra, field = "FlowVel")
 tworks_flow_df <- as.data.frame(tworks_flow, xy = TRUE)
+tworks_outdist <- terra::rasterize(tworks_crop, ra, field = "OUT_DIST")
+tworks_outdist_df <- as.data.frame(tworks_outdist, xy = TRUE)
+tworks_ipsteel <- terra::rasterize(tworks_crop, ra, field = "IP_Steelhd")
+tworks_ipsteel_df <- as.data.frame(tworks_ipsteel, xy = TRUE)
+tworks_ipchi <- terra::rasterize(tworks_crop, ra, field = "IP_Chinook")
+tworks_ipchi_df <- as.data.frame(tworks_ipchi, xy = TRUE)
 tworks_bfq <- terra::rasterize(tworks_crop, ra, field = "BFQ")
 tworks_bfq_df <- as.data.frame(tworks_bfq, xy = TRUE)
-aug_st_temp <- terra::rasterize(norwest_crop, ra, field = "S2_02_11")
+aug_st_temp <- terra::rasterize(norwest_crop, ra, field = "S36_2015")
 aug_st_temp_df <- as.data.frame(aug_st_temp, xy = TRUE)
-slope <- terra::rasterize(norwest_crop, ra, field = "SLOPE")
-slope_df <- as.data.frame(slope, xy = TRUE)
 canopy <- terra::rasterize(norwest_crop, ra, field = "CANOPY")
 canopy_df <- as.data.frame(canopy, xy = TRUE)
-cumdrainag <- terra::rasterize(norwest_crop, ra, field = "CUMDRAINAG")
-cumdrainag_df <- as.data.frame(cumdrainag, xy = TRUE)
+
 
 #convert to raster file type
 tworks_flow <- raster::raster(tworks_flow)
+tworks_outdist <- raster::raster(tworks_outdist)
+tworks_ipsteel <- raster::raster(tworks_ipsteel)
+tworks_ipchi <- raster::raster(tworks_ipchi)
 tworks_bfq <- raster::raster(tworks_bfq)
 aug_st_temp <- raster::raster(aug_st_temp)
-slope <- raster::raster(slope)
 canopy <- raster::raster(canopy)
-cumdrainag <- raster::raster(cumdrainag)
+
 
 #one other step is to remove -9999 and make NA for all NW temp data
 aug_st_temp <- raster::reclassify(aug_st_temp, cbind(-Inf, 0, NA), right=FALSE)
-slope <- raster::reclassify(slope, cbind(-Inf, 0, NA), right=FALSE)
 canopy <- raster::reclassify(canopy, cbind(-Inf, 0, NA), right=FALSE)
-cumdrainag <- raster::reclassify(cumdrainag, cbind(-Inf, 0, NA), right=FALSE)
 
 #stack raster for radish
-env_stack <- raster::stack(tworks_flow, tworks_bfq, aug_st_temp, slope, canopy, cumdrainag)
+env_stack <- raster::stack(tworks_flow, tworks_outdist, tworks_ipsteel, tworks_ipchi, tworks_bfq, aug_st_temp, canopy)
 
 #dataframe from the stack for checking final alignment with plot
 df1 <- as.data.frame(env_stack$FlowVel, xy = TRUE)
-df2 <- as.data.frame(env_stack$S2_02_11, xy = TRUE)
+df2 <- as.data.frame(env_stack$CANOPY, xy = TRUE)
 
 #remove NA to speed up the plot
 df1 <- df1 %>% drop_na()
@@ -178,7 +187,7 @@ df2 <- df2 %>% drop_na()
 #note that there are some weird missing data bits norwest around where the dam is
 ggplot() + 
   geom_raster(data = df1, aes(x = x, y = y)) +
-  geom_tile(data = df2, aes(x = x, y = y, colour = S2_02_11)) +
+  geom_tile(data = df2, aes(x = x, y = y, colour = CANOPY)) +
   coord_sf() +
   theme_bw()
 
