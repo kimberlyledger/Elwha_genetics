@@ -184,6 +184,12 @@ tw_list <- list('FlowVel', #Flow velocity (m/s) at bankfull depth
                 'DEPTH_M') #bankfull depth (m)
 ```
 
+```{r}
+plot(tw_crop, 'FROM_DIST')
+```
+
+
+
 
 ```{r}
 tw_lines_buffer <- buffer(tw_crop, 500)

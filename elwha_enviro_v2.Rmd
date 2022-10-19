@@ -5,6 +5,9 @@ date: "6/3/2022"
 output: github_document
 ---
 
+### opted not to use this code and go with a manual extration of environemntal variable using ARCMAP 
+### too many gaps/missing data with this code... 
+
 
 load libraries
 ```{r}
@@ -32,14 +35,14 @@ omy_sites <- onmy_metadata %>%
 omy_sites
 ```
 
-export 
+rename the correct lekt_outlet site to be able to differentiate later on 
+
 ```{r}
-#write.csv(sites, "onmy_sites.csv")
+omy_sites$Sampling_Site[10] <- "lekt_outlet_real"
+omy_sites
 ```
 
-
 make dataframe of unique gps for steelhead sites
-
 ```{r}
 latlong_omy <- omy_sites %>%
   distinct(Lat, Long, Sampling_Site) %>%
@@ -115,7 +118,6 @@ latlong_chin <- chinook_sites %>%
 ```
 
 
-
 ### working with Lat Long ### 
 create full sites of lat long sites 
 ```{r}
@@ -129,7 +131,39 @@ create SpatVect for sites
 latlong_sites <- vect(latlong_sites, geom = c("Long", "Lat"))
 crs(latlong_sites) <- "+proj=longlat" 
 plot(latlong_sites)
+
+#writeVector(latlong_sites, "test_rasters_Kim/sites.shp", overwrite = TRUE)
+writeVector(latlong_sites, "test_rasters_Kim/sites_update.shp", overwrite = TRUE) #this has a different site name for the correct lekt_outlet site
 ```
+
+
+## an aside: convert pebbles csv into a shapefile
+
+```{r}
+pebbles <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/pebbles_2015.csv")
+
+pebble_sites <- vect(pebbles, geom = c("Longitude", "Latitude"))
+crs(pebble_sites) <- "+proj=longlat" 
+plot(pebble_sites)
+
+writeVector(pebble_sites, "test_rasters_Kim/pebble_sites.shp", overwrite = TRUE)
+```
+
+
+
+
+
+## plot sites on top of Elwha stream shapefile 
+```{r, message=FALSE}
+elwha <- terra::vect("~/Desktop/LG_Proj4/Elwha_environmentaldata/Elwha_streams/Elwha_streams.shp")
+#elwha
+```
+
+```{r}
+plot(elwha)
+points(latlong_sites)
+```
+
 
 
 ## reference lat/long and rkm file 
@@ -140,30 +174,17 @@ head(rkm_latlong)
 ```
 
 
+
 ## prep point-based environmental data 
 
-1. read in pebble count, depth, width, etc... data 
-```{r}
-avg_elwha_msv <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/AVG_Elwha_MVS_AKF.csv")
-#head(avg_elwha_msv)
-```
-
-filter to retain only environmental variables 
-```{r}
-avg_elwha_msv_filter <- avg_elwha_msv %>%
-  filter(Year == 2015) %>%
-  select(Rkm, Latitude, Longitude, Channel_Gradient, Discharge..BFQ., AVG_Percent_Spawn_Chin, AVG_Percent_Gravels)  %>% # will need to update AVG_Percent_Gravels to AVG_Percent_Steelhead 
-  rename(RKM = Rkm, Lat = Latitude, Long = Longitude, Discharge = Discharge..BFQ.)
-```
-
-
-2. read in channel type data  -- DOES NOT INCLUDE GPS DATA so joining references coordinates
+2. read in channel type data  -- DOES NOT INCLUDE GPS DATA so must join to references coordinates
 ```{r}
 channel <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/Channel_Type.csv")
 #head(channel)
 ```
 
-filter to retain only environmental variables 
+filter to retain only environmental variables (channel type) 
+this data sheet also includes pool frequency(numerical) and particle size(categorical) - do we want to include these?
 ```{r}
 channel_filter <- channel %>%
     select(Rkm, Channel_type) %>%
@@ -172,121 +193,17 @@ channel_filter <- channel %>%
 ```
 
 
-3. read in spawning habitat data - does not include GPS so joining references coordinates
-```{r}
-spawn <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/Steelhead_Spawnable_Habitat.csv")
-head(spawn)
-```
 
-filter to retain only environmental variables 
-```{r}
-spawn_filter <- spawn %>%
-  select(rkm, General_habitat, Sampling_Site, Channel_type, Area) %>%
-  drop_na() %>%
-  rename(RKM = rkm, Sampling_Site_spawn = Sampling_Site, Channel_type_spawn = Channel_type, Spawn_area_m2 = Area) %>%
-  left_join(rkm_latlong)
-```
+## read in background raster - this is at a 30 sec resolution (1 km)
 
-
-
-
-4. read in ecosystem data 
-```{r}
-ecosystem_process <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/Ecosystem_Processes_Data.csv")
-#head(ecosystem_process)
-```
-
-filter to retain only environmental variables 
-```{r}
-ecosystem_process_filter <- ecosystem_process %>%
-  filter(SEASON == "Summer") %>%
-  select(SITE, W_WIDTH, CANOPY, FINES, D50, LAT, LONG, rKM) %>%
-  rename(RKM = rKM, Lat = LAT, Long = LONG)
-```
-
-
-
-5. read in invert data 
-```{r}
-invert <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/Invertebrate_Summary.csv")
-head(invert)
-```
-
-## for GPS
-filter to retain only environmental variables 
-and for rkm with more than one invert sample, take mean
-```{r}
-invert_filter <- invert %>%
-  select(BFW, LATITUDE, LONGITUDE) %>%
-  drop_na(BFW) %>%
-  rename(Lat = LATITUDE, Long = LONGITUDE)
-```
-
-
-6. read in pebble data 
-```{r}
-pebbles <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/glm_enviro/Riffle_Pool_Pebbles.csv")
-head(pebbles)
-```
-
-```{r}
-pebbles_filtered <- pebbles %>%
-  select(Latitude, Longitude, Rkm, Pebble_count_flow_CFS, Total_rifffle_area_m2) %>%
-  rename(RKM = Rkm, Lat = Latitude, Long = Longitude)
-```
-
-
-
-
-
-Aimee's Elwha shapefile 
-```{r, message=FALSE}
-library(terra)
-elwha <- terra::vect("~/Desktop/LG_Proj4/Elwha_environmentaldata/Elwha_streams/Elwha_streams.shp")
-#elwha
-```
-
-```{r}
-plot(elwha)
-```
-
-read in background raster - this is at a 30 sec resolution (1 km)
 ```{r}
 myrast <- rast("~/Desktop/LG_Proj4/Elwha_environmentaldata/wc2.1_30s_prec/wc2.1_30s_prec_01_crop.tif")
+myrast <- terra::project(myrast, crs(elwha))
 plot(myrast)
 ```
 
 
-```{r}
-#elwha_raster <- rasterize(elwha, myrast)
-#plot(elwha_raster)
-```
-
-turn environmental data into rasters... 
-
-
-#### lets start by extracting by lat/long from avg_elwha_msv_filter
-
-
-1. convert avg_elwha_msv_filter to SpatVect 
-```{r}
-avg_elwha_msv_vect <- vect(avg_elwha_msv_filter, geom = c("Long", "Lat"))
-crs(avg_elwha_msv_vect) <- "+proj=longlat" 
-plot(avg_elwha_msv_vect)
-```
-
-convert avg_elwha SpatVect to SpatRaster
-
-```{r}
-discharge_raster <- rasterize(avg_elwha_msv_vect, myrast, field = "Discharge", fun = mean)
-plot(discharge_raster)
-gradient_raster <- rasterize(avg_elwha_msv_vect, myrast, field = "Channel_Gradient", fun = mean)
-plot(gradient_raster)
-spawn_chin_raster <- rasterize(avg_elwha_msv_vect, myrast, field = "AVG_Percent_Spawn_Chin", fun = mean)
-plot(spawn_chin_raster)
-per_grav_raster <- rasterize(avg_elwha_msv_vect, myrast, field = "AVG_Percent_Gravels", fun = mean)
-plot(spawn_chin_raster)
-```
+## convert environmental point data into rasters... 
 
 2. convert channel_filter to SpatVect 
 ```{r}
@@ -298,78 +215,173 @@ plot(channel_vect)
 convert channel_filter SpatVect to SpatRaster
 
 ```{r}
-channel_raster <- rasterize(channel_vect, myrast, field = "Channel_type")
+channel_raster <- terra::rasterize(channel_vect, myrast, field = "Channel_type")
 plot(channel_raster)
 ```
 
-
-
-
-3. convert spawn_filter to SpatVect   - PROBLEM - same latlong and rkm listed for MS and tribs... how do we know which one to use for sites???? 
 ```{r}
-spawn_vect <- vect(spawn_filter, geom = c("Long", "Lat"))
-crs(spawn_vect) <- "+proj=longlat" 
-plot(spawn_vect)
-```
-
-convert spawn_filter SpatVect to SpatRaster
-
-```{r}
-spawn_channel_raster <- rasterize(spawn_vect, myrast, field = "Channel_type_spawn")
-plot(spawn_channel_raster)
-spawn_area_raster <- rasterize(spawn_vect, myrast, field = "Spawn_area_m2", fun = mean)
-plot(spawn_area_raster)
+channel_dat <- extract(channel_raster, latlong_sites)
 ```
 
 
+## convert environmental shapefiles into rasters 
 
-4. convert ecosystem_process_filter to SpatVect   
-```{r}
-ecosystem_vect <- vect(ecosystem_process_filter, geom = c("Long", "Lat"))
-crs(ecosystem_vect) <- "+proj=longlat" 
-plot(ecosystem_vect)
+
+## stream temperature - August  
+```{r, message=FALSE}
+st_august <- terra::vect("~/Desktop/LG_Proj4/Elwha_environmentaldata/StreamTempLayers_Kim/Elwha_ST_August2012-2017.shp")
+plot(x=st_august, y='STemp')
 ```
 
-very few data location for the ecosystem processs data... moving on... 
-
-
-5. convert invert_filter to SpatVect 
+convert stream temp SpatVector to SpatRaster
 ```{r}
-invert_vect <- vect(invert_filter, geom = c("Long", "Lat"))
-crs(invert_vect) <- "+proj=longlat" 
-plot(invert_vect)
+st_august_raster <- rasterize(st_august, myrast, field = "STemp", fun = mean)
+plot(st_august_raster)
 ```
 
-convert invert SpatVect to SpatRaster
+## stream temperature - # of days >16C
 
-```{r}
-invert_raster <- rasterize(invert_vect, myrast, field = "BFW", fun = mean)
-plot(invert_raster)
+```{r, message=FALSE}
+st_16C <- terra::vect("~/Desktop/LG_Proj4/Elwha_environmentaldata/StreamTempLayers_Kim/Elwha_ST_Above16C.shp")
+plot(x=st_16C, y='avg_h__')
 ```
 
-6. pebble_filter 
-
+convert stream temp SpatVector to SpatRaster
 ```{r}
-pebbles_vect <- vect(pebbles_filtered, geom = c("Long", "Lat"))
-crs(pebbles_vect) <- "+proj=longlat" 
-plot(pebbles_vect)
+st_16C_raster <- rasterize(st_16C, myrast, field = 'avg_h__', fun = mean)
+plot(st_16C_raster)
 ```
 
-convert pebble count SpatVect to SpatRaster
+## Terrainworks 
 
 ```{r}
-pebble_count_raster <- rasterize(pebbles_vect, myrast, field = "Pebble_count_flow_CFS", fun = mean)
-plot(pebble_count_raster)
+tw <- terra::vect("~/Desktop/LG_Proj4/TerrainWorks_Dung_Elwha_Corrected/Terrainworks_Dung_Elwha.shp")
+tw_proj <- terra::project(tw, crs(elwha))
 ```
 
+makes a buffer around elwha shapefile to use a template
+```{r}
+elwha_buffer <- buffer(elwha, 500)
+
+#writeVector(elwha_buffer, "test_rasters_Kim/elwha_buffer.shp", overwrite =T)
+```
+
+crop and mask tw
+```{r}
+tw_crop <- crop(tw_crop, elwha_buffer)
+tw_mask <- mask(tw_crop, elwha_buffer)
+
+writeVector(tw_mask, "test_rasters_Kim/tw_mask.shp", overwrite =T)
+
+plot(tw_mask)
+points(latlong_sites, col = "red")
+```
+
+
+since TerrainWorks has many layers, create list of environmental layers we want to keep
+```{r}
+tw_mask@ptr[["names"]]
+  
+#for terrainwork, need list of the columns wanted
+tw_list <- list('FlowVel', #Flow velocity (m/s) at bankfull depth
+                'StrmPow', #Stream power
+                'BFQ', #discharge
+                #'ELEV_M', #elevation (m) of downstream end of reach
+                'GRADIENT', #Original gradient
+                'FROM_DIST', #distance (km) from channel mouth to downstream end of reach 
+                #'FISH_RESID', #extent of resident fish habitat which can occur upstream
+                'IP_Chinook', #Chinook intrinsic habitat potential
+                'IP_Steelhd', #Steelhead intrinsic habitat potential
+                #'STRM_ORDER', #Strahler (1952) stream order 
+                #'WIDTH_M', #bankfull width (m)
+                'DEPTH_M') #bankfull depth (m)
+```
+
+#rasterize the shapefiles 
+```{r}
+FlowVel_raster <- terra::rasterize(tw_mask, myrast, field = 'FlowVel', fun = mean)
+plot(FlowVel_raster)
+```
+
+```{r}
+StrmPow_raster <- terra::rasterize(tw_mask, myrast, field = 'StrmPow', fun = mean)
+plot(StrmPow_raster)
+```
+
+```{r}
+BFQ_raster <- terra::rasterize(tw_mask, myrast, field = 'BFQ', fun = mean)
+plot(BFQ_raster)
+```
+
+perhaps BFQ is not the best to use... 
+
+```{r}
+GRADIENT_raster <- terra::rasterize(tw_mask, myrast, field = 'GRADIENT', fun = mean)
+plot(GRADIENT_raster)
+```
+
+```{r}
+IP_Steelhd_raster <- terra::rasterize(tw_mask, myrast, field = 'IP_Steelhd', fun = mean)
+plot(IP_Steelhd_raster)
+```
+
+FROM_DIST, IP_Chinook, IP_Steelhead doesn't seem to work...very few pixels with values....  
+
+```{r}
+DEPTH_raster <- terra::rasterize(tw_mask, myrast, field = 'DEPTH_M', fun = mean)
+plot(DEPTH_raster)
+```
 
 
 ### create a raster stack of all individual rasters 
 
+```{r}
+mystack <- c(channel_raster, DEPTH_raster, FlowVel_raster, GRADIENT_raster, st_august_raster, StrmPow_raster)
+
+#writeRaster(mystack, "test_rasters_Kim/enviro_stack.tif", overwrite = TRUE)
+```
+
+## turning point into buffered sites 
+```{r}
+sites_buffered <- buffer(latlong_sites, 500)
+plot(sites_buffered)
+
+writeVector(sites_buffered, "test_rasters_Kim/sites_buffered.shp", overwrite = TRUE)
+```
+
+extract streamtemp from buffered sites
+```{r}
+dat <- extract(mystack, sites_buffered, method = "simple")
+```
+
+
+
+remove 0's and NA's from this list 
+```{r}
+st_august_sites_buffered_filter <- st_august_sites_buffered %>%
+  filter(STemp != "NA") %>%
+  filter(STemp != 0)
+```
+
+
+
+
+tw_rasters <- lapply(tw_list, function(i){
+   tmp <- rasterize(tw, myrast, field=paste(i), background = NA)
+   tmp[tmp<(-20)] <- NA #remove missing data
+ })
+
+, reproject, and then extract
+terra::extract(tmp, sites_tw, xy = TRUE, method = 'simple', touches = TRUE, na.rm=TRUE)
+
+## extract August stream temp from sites 
 
 ```{r}
-mystack <- c(spawn_channel_raster, spawn_area_raster, channel_raster, discharge_raster, gradient_raster, spawn_chin_raster, per_grav_raster, invert_raster, pebble_count_raster)
+st_august_sites <- extract(st_august_raster, latlong_sites, method = "simple")
 ```
+
+
+
 
 
 ## try to extract data from site locations 
