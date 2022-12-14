@@ -1,0 +1,448 @@
+---
+title: "elwha_IBE"
+author: "Kimberly Ledger"
+date: "2022-11-21"
+output: github_document
+---
+
+## starting by just working with post-dam removal scores
+
+load libraries
+```{r, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+
+## check later what i'm actually using...
+#library(nlme)
+library(usdm)
+#library(corMLPE)
+library(lme4)
+library(stargazer)
+#library(MuMIn)
+```
+
+
+## steelhead 
+
+load data
+notes: using elkhorn20; added back in OUT_DIST manually ; separated sites with same environmental data into two rows manually
+```{r}
+omy_neutral_scores <- read.csv("~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/onmy_n_post_dapc.csv") %>%
+  rename(Sample_ID = X) %>%
+  dplyr::select(Sample_ID, PC1)
+
+omy_adaptive_scores <- readRDS("~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/IBE_input_Steelhead.rds") %>%
+  rename(Sample_ID = sampleID) %>%
+  dplyr::select(Sample_ID, alleleS_count1)
+
+enviro <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/enviro_summary_edit.csv") %>%
+  rename(Sampling_Site = X)
+
+omy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Steelhead_Formatted_kjl.csv") %>%
+  filter(Time == "Post")
+```
+
+join the environmental data to the list of omy collection sites
+```{r}
+omy_sites <- omy_metadata %>%
+  distinct(Sampling_Site)
+omy_sites
+
+omy_sites_enviro <- omy_sites %>%
+  left_join(enviro, by = "Sampling_Site")
+```
+
+note: return to see if elkhorn samplings should be divided into two separate sites for analyses... for now i am assigning all elkhorn samples to elkhorn20 for environmental analyses
+
+
+create a data frame 
+```{r}
+omy_df <- omy_metadata %>%
+  dplyr::select(Sample_ID, Time, Location, Sampling_Site) %>%
+  left_join(omy_sites_enviro, by = "Sampling_Site") %>%
+  left_join(omy_neutral_scores, by = "Sample_ID") %>%
+  left_join(omy_adaptive_scores, by = "Sample_ID") %>%
+  arrange(OUT_DIST) %>%
+  filter(Sampling_Site != "south_branch_little_river") %>%
+  drop_na(PC1)
+```
+
+
+start by visualizing some individual relationships before running models - neutral response variable
+```{r}
+ggplot(omy_df, aes(x=CANOPY, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=Pool_frequency, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=Logjams, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=spawnable_area_steelhd, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=ST_S36_2015, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=OUT_DIST, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=FlowVel, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=BFQ, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=IP_Steelhd, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=Percent_gravels, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=Percent_fines, y=PC1, col = Sampling_Site)) + 
+  geom_point()
+```
+
+start by visualizing some individual relationships before running models - adaptive response variable
+```{r}
+ggplot(omy_df, aes(x=CANOPY, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=Pool_frequency, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=Logjams, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=spawnable_area_steelhd, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=ST_S36_2015, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=OUT_DIST, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=FlowVel, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=BFQ, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=IP_Steelhd, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=Percent_gravels, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+
+ggplot(omy_df, aes(x=Percent_fines, y=alleleS_count1, col = Sampling_Site)) + 
+  geom_point()
+```
+
+## run some mixed effect models
+
+
+### sort of following worked examples: 
+https://bookdown.org/hhwagner1/LandGenCourse_book/WE_6.html#WE_6
+https://bookdown.org/hhwagner1/LandGenCourse_book/WE_12.html#WE_12 
+
+
+### center and scale explainatory variables for PCA
+```{r}
+sample <- omy_df$Sample_ID
+PC1 <- omy_df$PC1
+PropA <- omy_df$alleleS_count1
+site <- omy_df$Sampling_Site
+dist <- omy_df$OUT_DIST
+
+for (i in 1:length(colnames(omy_df))){
+  if (is.numeric(omy_df[, i])==TRUE)
+    omy_df[, i] <- as.numeric(scale(omy_df[, i]))
+  else
+    omy_df[, i] <- omy_df[, i]
+}
+
+## replace values i don't want scaled
+omy_df$PC1 <- PC1
+omy_df$alleleS_count1 <- PropA
+```
+
+check data frame structure
+```{r}
+omy_df$Sampling_Site <- as.factor(omy_df$Sampling_Site)
+str(omy_df)
+```
+
+response = PC1 (continuous), the loading score of PC1 from the DAPC analysis using neutral loci OR alleleS_count1 (continuous), the proportion of summer run alleles (?? check this)
+explanatory = environmental vars (standardized)
+random effect = sampling site
+
+## look at the distribution of the response variable 
+```{r}
+hist(omy_df$PC1)
+hist(omy_df$alleleS_count1)
+```
+
+PC1 okay, but will transform alleleS
+```{r}
+omy_df$alleleS_count1_asin <- asin(sqrt(omy_df$alleleS_count1))
+hist(omy_df$alleleS_count1_asin)
+```
+
+
+
+## subset dataframe to include all sites and only environmental variables with no missing data 
+```{r}
+omy_df_reduced <- omy_df %>%
+  dplyr::select(!Pool_frequency) %>%
+  dplyr::select(!Logjams) %>%
+  dplyr::select(!spawnable_area_steelhd) %>%
+  dplyr::select(!Percent_gravels) %>%
+  dplyr::select(!Percent_fines)
+```
+
+## fit candidate models for reduced dataset
+
+1. Null model: OUT_DIST (aka. Rkm)
+2. Full model: ST_S36_2015, FlowVel, BFQ, CANOPY, IP_Steelhd
+3. Temperature model: ST_S36_2015
+4. Flow model: FlowVel, BFQ 
+5. Habitat type: CANOPY, IP_Steelhd 
+
+## check for multicollinearity (again)
+```{r}
+df <- with(omy_df_reduced, data.frame(ST_S36_2015, FlowVel, BFQ, CANOPY, IP_Steelhd))
+usdm::vif(df) 
+```
+
+hmm.. remove BFQ from full model 
+
+## check for multicollinearity (again)
+```{r}
+df <- with(omy_df_reduced, data.frame(ST_S36_2015, FlowVel, CANOPY, IP_Steelhd))
+usdm::vif(df) 
+```
+
+## set up models 
+```{r}
+mod1 <- lmer(PC1 ~ OUT_DIST + (1|Sampling_Site), data = omy_df_reduced, REML = TRUE)
+mod2 <- lmer(PC1 ~ ST_S36_2015 + FlowVel+ CANOPY + IP_Steelhd + (1|Sampling_Site), data = omy_df_reduced, REML = TRUE)
+mod3 <- lmer(PC1 ~ ST_S36_2015 + (1|Sampling_Site), data = omy_df_reduced, REML = TRUE)
+mod4 <- lmer(PC1 ~ FlowVel + BFQ + (1|Sampling_Site), data = omy_df_reduced, REML = TRUE)
+mod5 <- lmer(PC1 ~ CANOPY + IP_Steelhd + (1|Sampling_Site), data = omy_df_reduced, REML = TRUE)
+```
+
+## check residuals of full model 
+```{r}
+plot(mod2, abline = c(0,0))
+par(mfrow=c(1,2))
+hist(residuals(mod2)) 
+qqnorm(residuals(mod2))
+```
+
+looks okay. 
+
+## compare models 
+```{r}
+stargazer(mod1, mod2, mod3, mod4, mod5, 
+          type = "text",
+          digits = 3, 
+          ci = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          digit.separator = "")
+```
+
+**null model has lowest AIC/BIC** 
+
+week 6 tutorial suggests using the ML fit, as AIC is not valid for REML... 
+
+```{r}
+aic_vals <- c(extractAIC(mod1)[2], extractAIC(mod2)[2], extractAIC(mod3)[2], 
+              extractAIC(mod4)[2], extractAIC(mod5)[2])
+names(aic_vals) <- c("mod1","mod2","mod3", "mod4", "mod5")
+aic_vals
+```
+
+**hmm here mod2 (full model) shows lowest AIC**
+
+
+check model validity 
+```{r}
+plot(mod2, abline = c(0,0))
+par(mfrow=c(1,2))
+hist(residuals(mod2)) 
+qqnorm(residuals(mod2))
+```
+
+## estimate variance components
+
+```{r}
+MuMIn::r.squaredGLMM(mod2)
+```
+
+the fixed effects had a pretty sizable effect (45%) and the total model explains 48%.
+
+```{r}
+summary(mod2)
+```
+
+
+
+
+## now subset data to include only sites with full environmental data (aka sites on mainstem of Elwha)
+
+```{r}
+omy_n_ms <- omy_df %>%
+  drop_na()
+```
+
+## fit candidate models 
+
+1. Null model: OUT_DIST (aka. Rkm)
+2. Full model: ST_S36_2015, FlowVel, BFQ, Pool_freq, Logjams, CANOPY, IP_Steelhd, spawnable_area_steelhd, percent_gravels, percent_fines
+3. Temperature model: ST_S36_2015
+4. Flow model: FlowVel, BFQ 
+5. Habitat type: Pool_freq, Logjams, CANOPY, IP_Steelhd 
+6. Substrate: spawnable_area_steelhd, percent_gravels, percent_fines
+
+## check for multicollinearity (again)
+```{r}
+df <- with(omy_n_ms, data.frame(ST_S36_2015, FlowVel, BFQ, Pool_frequency, Logjams, CANOPY, IP_Steelhd, spawnable_area_steelhd, Percent_gravels, Percent_fines))
+usdm::vif(df)  ## hmm... not sure why this produces Inf
+
+df <- with(omy_n_ms, data.frame(FlowVel, BFQ))
+usdm::vif(df)
+## remove BFQ
+
+df <- with(omy_n_ms, data.frame(Pool_frequency, Logjams, CANOPY, IP_Steelhd))
+usdm::vif(df)
+## remove pool_frequency
+
+df <- with(omy_n_ms, data.frame(Logjams, CANOPY, IP_Steelhd))
+usdm::vif(df)
+
+df <- with(omy_n_ms, data.frame(spawnable_area_steelhd, Percent_gravels, Percent_fines))
+usdm::vif(df)
+
+### going back to the full model... removing BFQ and pool_frequency
+df <- with(omy_n_ms, data.frame(ST_S36_2015, FlowVel, Logjams, CANOPY, IP_Steelhd, spawnable_area_steelhd, Percent_gravels, Percent_fines))
+usdm::vif(df) 
+
+# try dropping additional variables in the full model? for now just dropping full model from comparison.  
+```
+
+```{r}
+mod1 <- lmer(PC1 ~ OUT_DIST + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
+#mod2 <- lmer(PC1 ~ ST_S36_2015+ FlowVel+ Logjams+ CANOPY+ IP_Steelhd+ spawnable_area_steelhd + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
+mod3 <- lmer(PC1 ~ ST_S36_2015 + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
+mod4 <- lmer(PC1 ~ FlowVel + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
+mod5 <- lmer(PC1 ~ Logjams + CANOPY + IP_Steelhd + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
+mod6 <- lmer(PC1 ~ spawnable_area_steelhd + Percent_gravels + Percent_fines + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
+```
+
+```{r}
+aic_vals <- c(extractAIC(mod1)[2], extractAIC(mod3)[2], 
+              extractAIC(mod4)[2], extractAIC(mod5)[2], extractAIC(mod6)[2])
+names(aic_vals) <- c("mod1","mod3", "mod4", "mod5", "mod6")
+aic_vals
+```
+
+**null model is lowest** 
+
+```{r}
+plot(mod6, abline = c(0,0))
+
+par(mfrow=c(1,2))
+hist(residuals(mod6)) 
+qqnorm(residuals(mod6))
+```
+
+
+```{r}
+stargazer(mod1, mod3, mod4, mod5, mod6, 
+          type = "text",
+          digits = 3, 
+          ci = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          digit.separator = "")
+```
+
+**again, null model has lowest AIC/BIC**
+
+
+
+## now using the adaptive response variable... this is a proportion so go with "family = binomial" in glmer (???) or quasibinomial?
+
+## first use omy_df_reduced dataframe 
+
+```{r}
+mod1 <- glmer(alleleS_count1  ~ OUT_DIST + (1|Sampling_Site), family = "binomial", data = omy_df_reduced)
+mod2 <- glmer(alleleS_count1  ~ ST_S36_2015 + FlowVel+ CANOPY + IP_Steelhd + (1|Sampling_Site), family = "binomial", data = omy_df_reduced)
+mod3 <- glmer(alleleS_count1  ~ ST_S36_2015 + (1|Sampling_Site), family = "binomial", data = omy_df_reduced)
+mod4 <- glmer(alleleS_count1  ~ FlowVel + BFQ + (1|Sampling_Site), family = "binomial", data = omy_df_reduced)
+mod5 <- glmer(alleleS_count1  ~ CANOPY + IP_Steelhd + (1|Sampling_Site), family = "binomial", data = omy_df_reduced)
+```
+
+
+```{r}
+plot(mod2, abline = c(0,0))
+
+par(mfrow=c(1,2))
+hist(residuals(mod2)) 
+qqnorm(residuals(mod2))
+```
+
+well that's no good... but anyways.. let's glance at model AIC's
+
+```{r}
+stargazer(mod1, mod2, mod3, mod4, mod5, 
+          type = "text",
+          digits = 3, 
+          ci = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          digit.separator = "")
+```
+
+
+hmm... well null, full, and temp models have lowest AIC/BICs.  need to look into model fit further. 
+
+
+## second let's use the omy_n_ms dataframe 
+
+```{r}
+mod1 <- glmer(alleleS_count1 ~ OUT_DIST + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
+#mod2 <- lmer(alleleS_count1 ~ ST_S36_2015+ FlowVel+ Logjams+ CANOPY+ IP_Steelhd+ spawnable_area_steelhd + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
+mod3 <- glmer(alleleS_count1 ~ ST_S36_2015 + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
+mod4 <- glmer(alleleS_count1 ~ FlowVel + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
+mod5 <- glmer(alleleS_count1 ~ Logjams + CANOPY + IP_Steelhd + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
+mod6 <- glmer(alleleS_count1 ~ spawnable_area_steelhd + Percent_gravels + Percent_fines + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
+```
+
+```{r}
+plot(mod6, abline = c(0,0))
+
+par(mfrow=c(1,2))
+hist(residuals(mod6)) 
+qqnorm(residuals(mod6))
+```
+
+no bueno. 
+
+
+```{r}
+stargazer(mod1, mod3, mod4, mod5, mod6, 
+          type = "text",
+          digits = 3, 
+          ci = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          digit.separator = "")
+```
+
+
+**here the null model seems to be best**
+
+
+
+
+
