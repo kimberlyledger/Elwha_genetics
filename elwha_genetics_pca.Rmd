@@ -1,7 +1,7 @@
 ---
 title: "PCA and DAPC - pre vs post dam removal - steelhead and chinook"
 author: "Kimberly Ledger"
-date: "6/8/2022"
+date: "6/8/2022 - updated 8/15/2022; updated 10/19/2022"
 output: html_document
 ---
 
@@ -26,7 +26,7 @@ head(onmy_metadata)
 nrow(onmy_metadata)
 ```
 
-## read in the O. mykiss VCF file - this file does not include cutthroat trout hyrids
+## read in the O. mykiss VCF file - this file does not include cutthroat trout hybrids
 ```{r}
 onmy_vcf <- read.vcfR("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_GTSeq_Sans_CCT.vcf")
 onmy_vcf
@@ -106,37 +106,50 @@ onmy_gt_meta <- onmy_gt_meta[-304,]
 
 
 
-## filter data by neutral and adaptive loci 
+## filter data for neutral loci 
 ```{r}
 onmy_neutral <- onmy_gt_meta %>%
   filter(Status == "Neutral")
 dim(onmy_neutral)
-onmy_adaptive <- onmy_gt_meta %>%
-  filter(Status == "Adaptive")
-dim(onmy_adaptive)
+#onmy_adaptive <- onmy_gt_meta %>%
+#  filter(Status == "Adaptive")
+#dim(onmy_adaptive)
 ```
 
-now only 329 loci - check if we have info on whether the 5 missing loci are neutral or adaptive
 
-## seperate filtered neutral and adaptive genotype data into a pre-dam and post-dam datasets 
+we have 224 neutral loci with 1336 individuals 
+
+## seperate filtered neutral and adaptive genotype data into a pre-dam and post-dam datasets
+## and remove SBLR samples 
 ```{r}
-pre_id <- onmy_metadata$Sample_ID[which(onmy_metadata$Time=="Pre")]
-post_id <- onmy_metadata$Sample_ID[which(onmy_metadata$Time=="Post")]
+#onmy_metadata_noSBLR <- onmy_metadata$Sample_ID[which(onmy_metadata$Location!="SBLR" & )]
+
+pre_id <- onmy_metadata$Sample_ID[which(onmy_metadata$Time=="Pre" & onmy_metadata$Location!="SBLR")]
+post_id <- onmy_metadata$Sample_ID[which(onmy_metadata$Time=="Post" & onmy_metadata$Location!="SBLR")]
 
 rownames(onmy_neutral) <- onmy_neutral$SNP
 neutral_tG <- t(onmy_neutral[,c(1:1324)])
 
-rownames(onmy_adaptive) <- onmy_adaptive$SNP
-adaptive_tG <- t(onmy_adaptive[,c(1:1324)])
+#rownames(onmy_adaptive) <- onmy_adaptive$SNP
+#adaptive_tG <- t(onmy_adaptive[,c(1:1324)])
+
+#rownames(onmy_gt_meta) <- onmy_gt_meta$SNP
+#all_tG <- t(onmy_gt_meta[,c(1:1324)])
 
 geno_neutral_pre <- neutral_tG[rownames(neutral_tG) %in% pre_id,]
 dim(geno_neutral_pre)
 geno_neutral_post <- neutral_tG[rownames(neutral_tG) %in% post_id,]
 dim(geno_neutral_post)
-geno_adaptive_pre <- adaptive_tG[rownames(adaptive_tG) %in% pre_id,]
-dim(geno_adaptive_pre)
-geno_adaptive_post <- adaptive_tG[rownames(adaptive_tG) %in% post_id,]
-dim(geno_adaptive_post)
+
+#geno_adaptive_pre <- adaptive_tG[rownames(adaptive_tG) %in% pre_id,]
+#dim(geno_adaptive_pre)
+#geno_adaptive_post <- adaptive_tG[rownames(adaptive_tG) %in% post_id,]
+#dim(geno_adaptive_post)
+
+#geno_all_pre <- all_tG[rownames(all_tG) %in% pre_id,]
+#dim(geno_all_pre)
+#geno_all_post <- all_tG[rownames(all_tG) %in% post_id,]
+#dim(geno_all_post)
 ```
 
 
@@ -190,56 +203,56 @@ genind_n_post <- df2genind(geno_neutral_post,
 genind_n_post
 ```
 
-### adaptive loci pre-dam removal
+### all loci pre-dam removal
 ```{r}
-colmf <- gsub("\\.", "_", colnames(geno_adaptive_pre))
-colnames(geno_adaptive_pre) <- colmf
+colmf <- gsub("\\.", "_", colnames(geno_all_pre))
+colnames(geno_all_pre) <- colmf
 
-a_pre_loci <- colnames(geno_adaptive_pre)
-a_pre_ind <- rownames(geno_adaptive_pre)
+all_pre_loci <- colnames(geno_all_pre)
+all_pre_ind <- rownames(geno_all_pre)
 
-ind_df <- data.frame(a_pre_ind)
+ind_df <- data.frame(all_pre_ind)
 colnames(ind_df) <- "Sample_ID"
-onmy_a_pre_meta <- ind_df %>%
+onmy_all_pre_meta <- ind_df %>%
   left_join(onmy_metadata, by = "Sample_ID")
 
-a_pre_location <- onmy_a_pre_meta$Location
+all_pre_location <- onmy_all_pre_meta$Location
 
-genind_a_pre <- df2genind(geno_adaptive_pre,
+genind_all_pre <- df2genind(geno_all_pre,
                          sep="/",
-                         ind.names=a_pre_ind,
-                         loc.names=a_pre_loci, 
-                         pop = a_pre_location,     
+                         ind.names=all_pre_ind,
+                         loc.names=all_pre_loci, 
+                         pop = all_pre_location,     
                          ploidy = 2)
-genind_a_pre
+genind_all_pre
 ```
 
-### adaptive loci post-dam removal
+### all loci post-dam removal
 ```{r}
-colmf <- gsub("\\.", "_", colnames(geno_adaptive_post))
-colnames(geno_adaptive_post) <- colmf
+colmf <- gsub("\\.", "_", colnames(geno_all_post))
+colnames(geno_all_post) <- colmf
 
-a_post_loci <- colnames(geno_adaptive_post)
-a_post_ind <- rownames(geno_adaptive_post)
+all_post_loci <- colnames(geno_all_post)
+all_post_ind <- rownames(geno_all_post)
 
-ind_df <- data.frame(a_post_ind)
+ind_df <- data.frame(all_post_ind)
 colnames(ind_df) <- "Sample_ID"
-onmy_a_post_meta <- ind_df %>%
+onmy_all_post_meta <- ind_df %>%
   left_join(onmy_metadata, by = "Sample_ID")
 
-a_post_location <- onmy_a_post_meta$Location
+all_post_location <- onmy_all_post_meta$Location
 
-genind_a_post <- df2genind(geno_adaptive_post,
+genind_all_post <- df2genind(geno_all_post,
                          sep="/",
-                         ind.names=a_post_ind,
-                         loc.names=a_post_loci, 
-                         pop = a_post_location,     
+                         ind.names=all_post_ind,
+                         loc.names=all_post_loci, 
+                         pop = all_post_location,     
                          ploidy = 2)
-genind_a_post
+genind_all_post
 ```
 
 
-##convet genind to genlight objects 
+##convert genind to genlight objects 
 
 ```{r, message=FALSE}
 #install_github("green-striped-gecko/dartR")
@@ -247,28 +260,52 @@ library(dartR)
 
 genlit_n_pre <- gi2gl(genind_n_pre)
 genlit_n_post <- gi2gl(genind_n_post)
-genlit_a_pre <- gi2gl(genind_a_pre)
-genlit_a_post <- gi2gl(genind_a_post)
+#genlit_a_pre <- gi2gl(genind_all_pre)
+#genlit_a_post <- gi2gl(genind_all_post)
 ```
 
 
 ## PCA using genlight object
 
 set color palette
+Colors for locations:
+"brown1" (AD)
+"blue2" (BD)
+"darkgreen" (ID)
+"limegreen" (SBLR)
+
 ```{r}
-library(viridisLite)
-mycol = viridisLite::viridis(4, alpha = 0.6)
+mycol <- c("blue2", "darkgreen", "brown1")
 ```
 
-run and plot PCA
+
+run and plot PCA - omy neutral loci pre dam removal
 ```{r}
-pca_n_pre <- glPca(genlit_n_pre, center = T, scale = F, nf = 50)
-s.class(pca_n_pre$scores, pop(genlit_n_pre),
-        xax=1, yax=2, col=mycol,
-        axesel=FALSE, cstar=0, cpoint=3)
+onmy_pca_n_pre <- glPca(genlit_n_pre, center = T, scale = F, nf = 50)
+#s.class(pca_n_pre$scores, pop(genlit_n_pre),
+#        xax=1, yax=2, col=mycol,
+#        axesel=FALSE, cstar=0, cpoint=3)
 ```
 
-run and plot PCA
+make nicer looking pca plot 
+```{r}
+pc_onmy_n_pre <- data.frame(onmy_pca_n_pre$scores)
+pc_onmy_n_pre$Location <- onmy_n_pre_meta$Location
+pc_onmy_n_pre <- pc_onmy_n_pre %>%  
+  dplyr::mutate(Location = fct_relevel(Location, "BD", "SBLR", "ID", "AD"))
+
+plot_onmy_n_pre <- ggplot(data = pc_onmy_n_pre, aes(x=PC1, y = PC2, col = Location)) + 
+  geom_point(aes(col = Location), size = 3, alpha=0.8, show.legend = F) + 
+  labs(color = "Location")+
+  scale_color_manual(values=mycol[c(1,2,3,4)]) + 
+  #stat_ellipse(level = 0.95, size = 1) + 
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  theme_bw()
+plot_onmy_n_pre 
+```
+
+run and plot PCA - omy neutral loci post dam removal
 ```{r}
 pca_n_post <- glPca(genlit_n_post, center = T, scale = F, nf = 50)
 s.class(pca_n_post$scores, pop(genlit_n_post),
@@ -276,8 +313,21 @@ s.class(pca_n_post$scores, pop(genlit_n_post),
         axesel=FALSE, cstar=0, cpoint=3)
 ```
 
+addition: 19Oct2022
+```{r}
+barplot(100*pca_n_post$eig/sum(pca_n_post$eig), main="PCA Eigenvalues")
+title(ylab="Percent of variance\nexplained", line = 2)
+title(xlab="Eigenvalues", line = 1)
+```
 
-run and plot PCA
+save table of PC scores 
+```{r}
+pca_n_post_scores <- data.frame(pca_n_post$scores)
+write.csv(pca_n_post_scores, "~/Desktop/LG_Proj4/Elwha_genetics/outputs/omy_pca_n_post_scores.csv")
+```
+
+
+run and plot PCA - omy all loci pre dam removal
 ```{r}
 pca_a_pre <- glPca(genlit_a_pre, center = T, scale = F, nf = 50)
 s.class(pca_a_pre$scores, pop(genlit_a_pre),
@@ -285,12 +335,23 @@ s.class(pca_a_pre$scores, pop(genlit_a_pre),
         axesel=FALSE, cstar=0, cpoint=3)
 ```
 
-run and plot PCA
+run and plot PCA - omy all loci post dam removal
 ```{r}
 pca_a_post <- glPca(genlit_a_post, center = T, scale = F, nf = 50)
 s.class(pca_a_post$scores, pop(genlit_a_post),
         xax=1, yax=2, col=mycol,
         axesel=FALSE, cstar=0, cpoint=3)
+```
+
+
+playing around by PC scores and variance contri. 
+```{r}
+var_frac <- pca_n_post$eig/sum(pca_n_post$eig)
+### signif(sum(var_frac[1:50]) * 100, 3)  not sure what this does... 
+```
+
+```{r}
+#onmy_neutral_pca_loadingscores <- pca_n_pre$scores
 ```
 
 
@@ -311,17 +372,39 @@ grp_n_pre$Kstat
 
 will use K=3 and K=4 BIC
 ```{r}
+grp_n_pre_2 <- find.clusters(genlit_n_pre, max.n.clust=40, n.clust = 2)
 grp_n_pre_3 <- find.clusters(genlit_n_pre, max.n.clust=40, n.clust = 3)
-grp_n_pre_4 <- find.clusters(genlit_n_pre, max.n.clust=40, n.clust = 4)
+#grp_n_pre_4 <- find.clusters(genlit_n_pre, max.n.clust=40, n.clust = 4)
 ```
 
 run dapc
 ```{r}
+dapc_n_pre_2 <- dapc(genlit_n_pre, grp_n_pre_2$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_n_pre_2
 dapc_n_pre_3 <- dapc(genlit_n_pre, grp_n_pre_3$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
 dapc_n_pre_3
-dapc_n_pre_4 <- dapc(genlit_n_pre, grp_n_pre_4$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
-dapc_n_pre_4 
+#dapc_n_pre_4 <- dapc(genlit_n_pre, grp_n_pre_4$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+#dapc_n_pre_4 
 ```
+
+plot DAPC using ggplot
+```{r}
+dapc_n_pre_2_scores <- as.data.frame(dapc_n_pre_2$tab)
+dapc_n_pre_2_scores$Assigned_Pop <- dapc_n_pre_2$grp
+dapc_n_pre_2_scores$Sampling_Location <- onmy_n_pre_meta$Location
+
+set.seed(9)
+onmy_dapc_n_pre_2 <- ggplot(dapc_n_pre_2_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+  geom_point(size=2, aes(colour=Sampling_Location )) + 
+  stat_ellipse(level = 0.95, size = 1) + 
+  scale_color_manual(values = mycol) + 
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  theme_bw() + 
+  theme(legend.position = "none")
+onmy_dapc_n_pre_2
+```
+
 
 plot DAPC using ggplot
 ```{r}
@@ -330,14 +413,40 @@ dapc_n_pre_3_scores$Assigned_Pop <- dapc_n_pre_3$grp
 dapc_n_pre_3_scores$Sampling_Location <- onmy_n_pre_meta$Location
 
 set.seed(9)
-dapc_n_pre_3 <- ggplot(dapc_n_pre_3_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+onmy_dapc_n_pre_3 <- ggplot(dapc_n_pre_3_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
   geom_point(size=2, aes(colour=Sampling_Location )) + 
   stat_ellipse(level = 0.95, size = 1) + 
-  scale_color_manual(values = viridis(4)) + 
+  scale_color_manual(values = mycol) + 
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  theme_bw() + 
+  theme(legend.position = "none")
+onmy_dapc_n_pre_3
+```
+
+
+save pc1 values 
+
+```{r}
+write.csv(dapc_n_pre_2_scores, "~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/onmy_n_pre_dapc.csv")
+```
+
+
+plot DAPC using ggplot
+```{r}
+dapc_n_pre_4_scores <- as.data.frame(dapc_n_pre_4$tab)
+dapc_n_pre_4_scores$Assigned_Pop <- dapc_n_pre_4$grp
+dapc_n_pre_4_scores$Sampling_Location <- onmy_n_pre_meta$Location
+
+set.seed(9)
+dapc_n_pre_4 <- ggplot(dapc_n_pre_4_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+  geom_point(size=2, aes(colour=Sampling_Location )) + 
+  stat_ellipse(level = 0.95, size = 1) + 
+  scale_color_manual(values = mycol) + 
   geom_hline(yintercept = 0) + 
   geom_vline(xintercept = 0) + 
   theme_bw()
-dapc_n_pre_3
+dapc_n_pre_4
 ```
 
 
@@ -355,14 +464,37 @@ grp_n_post$Kstat
 
 will use K= 3 and K=5
 ```{r}
+grp_n_post_2 <- find.clusters(genlit_n_post, max.n.clust=40, n.clust = 2)
 grp_n_post_3 <- find.clusters(genlit_n_post, max.n.clust=40, n.clust = 3)
-grp_n_post_5 <- find.clusters(genlit_n_post, max.n.clust=40, n.clust = 5)
+#grp_n_post_5 <- find.clusters(genlit_n_post, max.n.clust=40, n.clust = 5)
 ```
 
 run dapc
 ```{r}
-dapc_n_post_3 <- dapc(genlit_n_post, grp_n_post_3$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_n_post_2 <- dapc(genlit_n_post, grp_n_post_2$grp, n.pca = 50, n.da = 2)
+dapc_n_post_2
+dapc_n_post_3 <- dapc(genlit_n_post, grp_n_post_3$grp, n.pca = 50, n.da = 2)
 dapc_n_post_3
+#dapc_n_post_5 <- dapc(genlit_n_post, grp_n_post_5$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+#dapc_n_post_5
+```
+
+plot DAPC using ggplot
+```{r}
+dapc_n_post_2_scores <- as.data.frame(dapc_n_post_2$tab)
+dapc_n_post_2_scores$Assigned_Pop <- dapc_n_post_2$grp
+dapc_n_post_2_scores$Sampling_Location <- onmy_n_post_meta$Location
+
+set.seed(9)
+onmy_dapc_n_post_2 <- ggplot(dapc_n_post_2_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+  geom_point(size=2, aes(colour=Sampling_Location )) + 
+  stat_ellipse(level = 0.95, size = 1) + 
+  scale_color_manual(values = mycol) + 
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  theme_bw() + 
+  theme(legend.position = "none")
+onmy_dapc_n_post_2
 ```
 
 plot DAPC using ggplot
@@ -372,17 +504,49 @@ dapc_n_post_3_scores$Assigned_Pop <- dapc_n_post_3$grp
 dapc_n_post_3_scores$Sampling_Location <- onmy_n_post_meta$Location
 
 set.seed(9)
-dapc_n_post_3 <- ggplot(dapc_n_post_3_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+onmy_dapc_n_post_3 <- ggplot(dapc_n_post_3_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
   geom_point(size=2, aes(colour=Sampling_Location )) + 
   stat_ellipse(level = 0.95, size = 1) + 
-  scale_color_manual(values = viridis(4)) + 
+  scale_color_manual(values = mycol) + 
   geom_hline(yintercept = 0) + 
   geom_vline(xintercept = 0) + 
-  theme_bw()
-dapc_n_post_3
+  theme_bw() #+ 
+  #theme(legend.position = "none")
+onmy_dapc_n_post_3
 ```
 
-### adaptive pre-dam removal
+save pc values 
+```{r}
+write.csv(dapc_n_post_2_scores, "~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/onmy_n_post_dapc.csv")
+```
+
+
+another way to plot 
+```{r}
+scatter(dapc_n_post_3, col = mycol, cex = 2, legend = TRUE, clabel = F, posi.leg = "bottomleft", scree.pca = TRUE,
+        posi.pca = "topleft", cleg = 0.75)
+```
+
+
+plot DAPC using ggplot
+```{r}
+dapc_n_post_5_scores <- as.data.frame(dapc_n_post_5$tab)
+dapc_n_post_5_scores$Assigned_Pop <- dapc_n_post_5$grp
+dapc_n_post_5_scores$Sampling_Location <- onmy_n_post_meta$Location
+
+set.seed(9)
+dapc_n_post_5 <- ggplot(dapc_n_post_5_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) +
+  geom_point(size=2, aes(colour=Sampling_Location )) +
+  stat_ellipse(level = 0.95, size = 1) +
+  scale_color_manual(values = mycol) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  theme_bw()
+dapc_n_post_5
+```
+
+
+### all loci pre-dam removal
 
 find clusters
 ```{r}
@@ -397,15 +561,14 @@ grp_a_pre$Kstat
 will use K=4 and K=5 BIC
 ```{r}
 grp_a_pre_4 <- find.clusters(genlit_a_pre, max.n.clust=40, n.clust = 4)
-grp_a_pre_5 <- find.clusters(genlit_a_pre, max.n.clust=40, n.clust = 5)
 ```
 
 run dapc
 ```{r}
 dapc_a_pre_4 <- dapc(genlit_a_pre, grp_a_pre_4$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
 dapc_a_pre_4
-dapc_a_pre_5 <- dapc(genlit_a_pre, grp_a_pre_5$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
-dapc_a_pre_5 
+#dapc_a_pre_5 <- dapc(genlit_a_pre, grp_a_pre_5$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+#dapc_a_pre_5 
 ```
 
 
@@ -413,22 +576,20 @@ plot DAPC using ggplot
 ```{r}
 dapc_a_pre_4_scores <- as.data.frame(dapc_a_pre_4$tab)
 dapc_a_pre_4_scores$Assigned_Pop <- dapc_a_pre_4$grp
-dapc_a_pre_4_scores$Sampling_Location <- onmy_a_pre_meta$Location
+dapc_a_pre_4_scores$Sampling_Location <- onmy_all_pre_meta$Location
 
 set.seed(9)
-dapc_a_pre_4 <- ggplot(dapc_a_pre_4_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+onmy_dapc_a_pre_4 <- ggplot(dapc_a_pre_4_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
   geom_point(size=2, aes(colour=Sampling_Location )) + 
   stat_ellipse(level = 0.95, size = 1) + 
   scale_color_manual(values = viridis(4)) + 
   geom_hline(yintercept = 0) + 
   geom_vline(xintercept = 0) + 
   theme_bw()
-dapc_a_pre_4
+onmy_dapc_a_pre_4
 ```
 
-
-
-### adaptive post-dam removal
+### all loci post-dam removal
 
 find clusters
 ```{r}
@@ -440,18 +601,18 @@ check Kstat
 grp_a_post$Kstat
 ```
 
-will use K=4 and K=5 BIC
+will use K=4 and K=8 BIC
 ```{r}
 grp_a_post_4 <- find.clusters(genlit_a_post, max.n.clust=40, n.clust = 4)
-grp_a_post_5 <- find.clusters(genlit_a_post, max.n.clust=40, n.clust = 5)
+#grp_a_post_8 <- find.clusters(genlit_a_post, max.n.clust=40, n.clust = 8)
 ```
 
 run dapc
 ```{r}
 dapc_a_post_4 <- dapc(genlit_a_post, grp_a_post_4$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
 dapc_a_post_4
-dapc_a_post_5 <- dapc(genlit_a_post, grp_a_post_5$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
-dapc_a_post_5 
+#dapc_a_post_8 <- dapc(genlit_a_post, grp_a_post_8$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+#dapc_a_post_8 
 ```
 
 
@@ -459,18 +620,21 @@ plot DAPC using ggplot
 ```{r}
 dapc_a_post_4_scores <- as.data.frame(dapc_a_post_4$tab)
 dapc_a_post_4_scores$Assigned_Pop <- dapc_a_post_4$grp
-dapc_a_post_4_scores$Sampling_Location <- onmy_a_post_meta$Location
+dapc_a_post_4_scores$Sampling_Location <- onmy_all_post_meta$Location
 
 set.seed(9)
-dapc_a_post_4 <- ggplot(dapc_a_post_4_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+onmy_dapc_a_post_4 <- ggplot(dapc_a_post_4_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
   geom_point(size=2, aes(colour=Sampling_Location )) + 
   stat_ellipse(level = 0.95, size = 1) + 
   scale_color_manual(values = viridis(4)) + 
   geom_hline(yintercept = 0) + 
   geom_vline(xintercept = 0) + 
   theme_bw()
-dapc_a_post_4
+onmy_dapc_a_post_4
 ```
+
+
+
 
 
 # now try working with the Chinook salmon data
@@ -555,7 +719,7 @@ dim(chin_adaptive)
 ```
 
 
-## seperate filtered neutral and adaptive genotype data into a pre-dam (190 ind) and post-dam (164 ind) datasets 
+## seperate filtered neutral and adaptive genotype data into a pre-dam (188 ind) and post-dam (163 ind) datasets 
 ```{r}
 pre_id <- chin_meta$Sample_ID[which(chin_meta$Time=="Pre")]
 post_id <- chin_meta$Sample_ID[which(chin_meta$Time=="Post")]
@@ -563,33 +727,29 @@ post_id <- chin_meta$Sample_ID[which(chin_meta$Time=="Post")]
 rownames(chin_neutral) <- chin_neutral$Locus_Name
 neutral_tG <- t(chin_neutral[,c(1:359)])  
 
-rownames(chin_adaptive) <- chin_adaptive$Locus_Name
-adaptive_tG <- t(chin_adaptive[,c(1:359)])
+#rownames(chin_adaptive) <- chin_adaptive$Locus_Name
+#adaptive_tG <- t(chin_adaptive[,c(1:359)])
+
+rownames(chin_gt_meta) <- chin_gt_meta$Locus_Name
+all_tG <- t(chin_gt_meta[,c(1:359)])
 
 geno_neutral_pre <- neutral_tG[rownames(neutral_tG) %in% pre_id,]
 dim(geno_neutral_pre)
 geno_neutral_post <- neutral_tG[rownames(neutral_tG) %in% post_id,]
 dim(geno_neutral_post)
-geno_adaptive_pre <- adaptive_tG[rownames(adaptive_tG) %in% pre_id,]
-dim(geno_adaptive_pre)
-geno_adaptive_post <- adaptive_tG[rownames(adaptive_tG) %in% post_id,]
-dim(geno_adaptive_post)
+
+#geno_adaptive_pre <- adaptive_tG[rownames(adaptive_tG) %in% pre_id,]
+#dim(geno_adaptive_pre)
+#geno_adaptive_post <- adaptive_tG[rownames(adaptive_tG) %in% post_id,]
+#dim(geno_adaptive_post)
+
+geno_all_pre <- all_tG[rownames(all_tG) %in% pre_id,]
+dim(geno_all_pre)
+geno_all_post <- all_tG[rownames(all_tG) %in% post_id,]
+dim(geno_all_post)
 ```
 
 
-
-
-
-
-
-
-## join data frames 
-```{r}
-chin_geno$Sample_ID <- rownames(chin_geno)
-
-m <- chin_geno %>%
-  left_join(chin_meta, by = "Sample_ID")
-```
 
 # create genind objects for chinook 
 
@@ -641,13 +801,13 @@ chin_genind_n_post <- df2genind(geno_neutral_post,
 chin_genind_n_post
 ```
 
-### adaptive loci pre-dam removal
+### all loci pre-dam removal
 ```{r}
-colmf <- gsub("\\.", "_", colnames(geno_adaptive_pre))
-colnames(geno_adaptive_pre) <- colmf
+colmf <- gsub("\\.", "_", colnames(geno_all_pre))
+colnames(geno_all_pre) <- colmf
 
-a_pre_loci <- colnames(geno_adaptive_pre)
-a_pre_ind <- rownames(geno_adaptive_pre)
+a_pre_loci <- colnames(geno_all_pre)
+a_pre_ind <- rownames(geno_all_pre)
 
 ind_df <- data.frame(a_pre_ind)
 colnames(ind_df) <- "Sample_ID"
@@ -656,7 +816,7 @@ chin_a_pre_meta <- ind_df %>%
 
 a_pre_location <- chin_a_pre_meta$Location
 
-chin_genind_a_pre <- df2genind(geno_adaptive_pre,
+chin_genind_a_pre <- df2genind(geno_all_pre,
                          sep="/",
                          ind.names=a_pre_ind,
                          loc.names=a_pre_loci, 
@@ -665,13 +825,13 @@ chin_genind_a_pre <- df2genind(geno_adaptive_pre,
 chin_genind_a_pre
 ```
 
-### adaptive loci post-dam removal
+### all loci post-dam removal
 ```{r}
-colmf <- gsub("\\.", "_", colnames(geno_adaptive_post))
-colnames(geno_adaptive_post) <- colmf
+colmf <- gsub("\\.", "_", colnames(geno_all_post))
+colnames(geno_all_post) <- colmf
 
-a_post_loci <- colnames(geno_adaptive_post)
-a_post_ind <- rownames(geno_adaptive_post)
+a_post_loci <- colnames(geno_all_post)
+a_post_ind <- rownames(geno_all_post)
 
 ind_df <- data.frame(a_post_ind)
 colnames(ind_df) <- "Sample_ID"
@@ -680,7 +840,7 @@ chin_a_post_meta <- ind_df %>%
 
 a_post_location <- chin_a_post_meta$Location
 
-chin_genind_a_post <- df2genind(geno_adaptive_post,
+chin_genind_a_post <- df2genind(geno_all_post,
                          sep="/",
                          ind.names=a_post_ind,
                          loc.names=a_post_loci, 
@@ -698,18 +858,13 @@ library(dartR)
 
 chin_genlit_n_pre <- gi2gl(chin_genind_n_pre)
 chin_genlit_n_post <- gi2gl(chin_genind_n_post)
-chin_genlit_a_pre <- gi2gl(chin_genind_a_pre)
-chin_genlit_a_post <- gi2gl(chin_genind_a_post)
+#chin_genlit_a_pre <- gi2gl(chin_genind_a_pre)
+#chin_genlit_a_post <- gi2gl(chin_genind_a_post)
 ```
 
 
 ## PCA using genlight objects 
 
-set color palette
-```{r}
-library(viridisLite)
-mycol = viridisLite::viridis(4, alpha = 0.6)
-```
 
 run and plot PCA
 ```{r}
@@ -825,11 +980,11 @@ plot all together
 ```{r}
 library(cowplot)
 
-neutral <- plot_grid(plot_chin_n_pre, plot_chin_n_post, labels = "AUTO", ncol = 2)
-neutral
+#neutral <- plot_grid(plot_chin_n_pre, plot_chin_n_post, labels = "AUTO", ncol = 2)
+#neutral
 
-adaptive <- plot_grid(plot_chin_a_pre, plot_chin_a_post, labels = "AUTO", ncol = 2)
-adaptive
+#adaptive <- plot_grid(plot_chin_a_pre, plot_chin_a_post, labels = "AUTO", ncol = 2)
+#adaptive
 ```
 
 
@@ -865,16 +1020,23 @@ plot DAPC using ggplot
 dapc_n_pre_2_scores <- as.data.frame(dapc_n_pre_2$tab)
 dapc_n_pre_2_scores$Assigned_Pop <- dapc_n_pre_2$grp
 dapc_n_pre_2_scores$Sampling_Location <- chin_n_pre_meta$Location
+dapc_n_pre_2_scores <- dapc_n_pre_2_scores %>%  
+  dplyr::mutate(Sampling_Location = fct_relevel(Sampling_Location, "BD", "ID", "AD"))
 
 set.seed(9)
-dapc_n_pre_2 <- ggplot(dapc_n_pre_2_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+chin_dapc_n_pre_2 <- ggplot(dapc_n_pre_2_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
   geom_point(size=2, aes(colour=Sampling_Location )) + 
   stat_ellipse(level = 0.95, size = 1) + 
-  scale_color_manual(values = mycol[c(1,3,4)]) + 
+  scale_color_manual(values = mycol) + 
   geom_hline(yintercept = 0) + 
   geom_vline(xintercept = 0) + 
-  theme_bw()
-dapc_n_pre_2
+  theme_bw() + 
+  theme(legend.position = "none")
+chin_dapc_n_pre_2
+```
+
+```{r}
+write.csv(dapc_n_pre_2_scores, "~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/chin_n_pre_dapc.csv")
 ```
 
 
@@ -907,20 +1069,30 @@ plot DAPC using ggplot
 dapc_n_post_2_scores <- as.data.frame(dapc_n_post_2$tab)
 dapc_n_post_2_scores$Assigned_Pop <- dapc_n_post_2$grp
 dapc_n_post_2_scores$Sampling_Location <- chin_n_post_meta$Location
+dapc_n_post_2_scores <- dapc_n_post_2_scores %>%  
+  dplyr::mutate(Sampling_Location = fct_relevel(Sampling_Location, "BD", "ID", "AD"))
+
 
 set.seed(9)
-dapc_n_post_2 <- ggplot(dapc_n_post_2_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+chin_dapc_n_post_2 <- ggplot(dapc_n_post_2_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
   geom_point(size=2, aes(colour=Sampling_Location )) + 
   stat_ellipse(level = 0.95, size = 1) + 
-  scale_color_manual(values = mycol[c(1,3,4)]) + 
+  scale_color_manual(values = mycol) + 
   geom_hline(yintercept = 0) + 
   geom_vline(xintercept = 0) + 
-  theme_bw()
-dapc_n_post_2
+  theme_bw() + 
+  theme(legend.position = "none")
+chin_dapc_n_post_2
 ```
 
 
-### pre-dam removal adaptive loci
+```{r}
+write.csv(dapc_n_post_2_scores, "~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/chin_n_post_dapc.csv")
+```
+
+
+
+### pre-dam removal all loci
 
 find clusters
 ```{r}
@@ -932,39 +1104,40 @@ check Kstat
 grp_a_pre$Kstat
 ```
 
-will use K=3
+will use K=2
 ```{r}
-grp_a_pre_3 <- find.clusters(chin_genlit_a_pre, max.n.clust=40, n.clust = 3)
+grp_a_pre_2 <- find.clusters(chin_genlit_a_pre, max.n.clust=40, n.clust = 2)
 ```
 
 run dapc
 ```{r}
-dapc_a_pre_3 <- dapc(chin_genlit_a_pre, grp_a_pre_3$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
-dapc_a_pre_3
+dapc_a_pre_2 <- dapc(chin_genlit_a_pre, grp_a_pre_2$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_a_pre_2
 ```
 
 plot DAPC using ggplot
 ```{r}
-dapc_a_pre_3_scores <- as.data.frame(dapc_a_pre_3$tab)
-dapc_a_pre_3_scores$Assigned_Pop <- dapc_a_pre_3$grp
-dapc_a_pre_3_scores$Sampling_Location <- chin_a_pre_meta$Location
+dapc_a_pre_2_scores <- as.data.frame(dapc_a_pre_2$tab)
+dapc_a_pre_2_scores$Assigned_Pop <- dapc_a_pre_2$grp
+dapc_a_pre_2_scores$Sampling_Location <- chin_a_pre_meta$Location
+dapc_a_pre_2_scores <- dapc_a_pre_2_scores %>%  
+  dplyr::mutate(Sampling_Location = fct_relevel(Sampling_Location, "BD", "ID", "AD"))
+
 
 set.seed(9)
-dapc_a_pre_3 <- ggplot(dapc_a_pre_3_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
-  geom_point(size=2, aes(colour=Sampling_Location )) + 
+chin_dapc_a_pre_2 <- ggplot(dapc_a_pre_2_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+  geom_point(size=2, aes(colour=Sampling_Location)) + 
   stat_ellipse(level = 0.95, size = 1) + 
   scale_color_manual(values = mycol[c(1,3,4)]) + 
   geom_hline(yintercept = 0) + 
   geom_vline(xintercept = 0) + 
   theme_bw()
-dapc_a_pre_3
+chin_dapc_a_pre_2
 ```
 
 
 
-
-
-### post-dam removal adaptive loci
+### post-dam removal all loci
 
 find clusters
 ```{r}
@@ -976,30 +1149,91 @@ check Kstat
 grp_a_post$Kstat
 ```
 
-will use K=3
+will use K=2
 ```{r}
-grp_a_post_3 <- find.clusters(chin_genlit_a_post, max.n.clust=40, n.clust = 3)
+grp_a_post_2 <- find.clusters(chin_genlit_a_post, max.n.clust=40, n.clust = 2)
 ```
 
 run dapc
 ```{r}
-dapc_a_post_3 <- dapc(chin_genlit_a_post, grp_a_post_3$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
-dapc_a_post_3
+dapc_a_post_2 <- dapc(chin_genlit_a_post, grp_a_post_2$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_a_post_2
 ```
 
 plot DAPC using ggplot
 ```{r}
-dapc_a_post_3_scores <- as.data.frame(dapc_a_post_3$tab)
-dapc_a_post_3_scores$Assigned_Pop <- dapc_a_post_3$grp
-dapc_a_post_3_scores$Sampling_Location <- chin_a_post_meta$Location
+dapc_a_post_2_scores <- as.data.frame(dapc_a_post_2$tab)
+dapc_a_post_2_scores$Assigned_Pop <- dapc_a_post_2$grp
+dapc_a_post_2_scores$Sampling_Location <- chin_a_post_meta$Location
+dapc_a_post_2_scores <- dapc_a_post_2_scores %>%  
+  dplyr::mutate(Sampling_Location = fct_relevel(Sampling_Location, "BD", "ID", "AD"))
+
 
 set.seed(9)
-dapc_a_post_3 <- ggplot(dapc_a_post_3_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
-  geom_point(size=2, aes(colour=Sampling_Location )) + 
+chin_dapc_a_post_2 <- ggplot(dapc_a_post_2_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+  geom_point(size=2, aes(colour=Sampling_Location)) + 
   stat_ellipse(level = 0.95, size = 1) + 
   scale_color_manual(values = mycol[c(1,3,4)]) + 
   geom_hline(yintercept = 0) + 
   geom_vline(xintercept = 0) + 
   theme_bw()
-dapc_a_post_3
+chin_dapc_a_post_2
 ```
+
+
+
+figures for publication 
+start with just neutral loci 
+top row = steelhead
+bottom row = chinook 
+left = pre removal
+right = post removal 
+
+
+neutral loci
+```{r}
+library(cowplot)
+
+png('~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/DAPC.png',   
+    width     = 6,
+    height    = 6,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+
+neutral <- plot_grid(onmy_dapc_n_pre_2, onmy_dapc_n_post_2, chin_dapc_n_pre_2, chin_dapc_n_post_2, labels = "AUTO", ncol = 2)
+neutral
+```
+
+
+export legend to use 
+```{r}
+png('~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/legend.png',   
+    width     = 3,
+    height    = 3,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+
+legend <- cowplot::get_legend(onmy_dapc_n_post_3)
+
+library(grid)
+library(gridExtra)
+grid.newpage()
+grid.draw(legend)
+```
+
+
+
+
+
+ggsave("~/Desktop/LG_Proj4/Elwha_genetics/example_figures/neutral_loci.png", plot = neutral, width = 12, height = 8, dpi = 300)
+
+all loci
+```{r}
+
+all <- plot_grid(onmy_dapc_a_pre_4, onmy_dapc_a_post_4, chin_dapc_a_pre_2, chin_dapc_a_post_2, labels = "AUTO", ncol = 2)
+all
+```
+
+ggsave("~/Desktop/LG_Proj4/Elwha_genetics/example_figures/all_loci.png", plot = all, width = 12, height = 8, dpi = 300)
