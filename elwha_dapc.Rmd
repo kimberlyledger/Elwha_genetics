@@ -1,0 +1,594 @@
+---
+title: "DAPC"
+author: "Kimberly Ledger"
+date: "2023-02-08"
+output: html_document
+---
+
+lastest run: 8 March 2023 with new steelhead vcf 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This code runs DAPCs on neutral loci only and all loci for steelhead and chinook salmon pre and post dam removal 
+
+load libraries
+```{r, message = FALSE}
+library(vcfR) #this package is used to visualize and manipulate VCF files
+library(adegenet) #this package is used for analysis of genetic/genomic data 
+library(tidyverse) # data manipulation
+library(forcats)
+library(ggplot2)
+```
+
+# Part 1: Prepare the data for O. mykiss (steelhead and rainbow trout) 
+
+## read in the steelhead (Oncorhynchus mykiss) metadata
+```{r}
+onmy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/2023/Elwha_Steelhead_Formatted_Post_012023_kjl.csv") %>%
+  dplyr::mutate(Location = fct_relevel(Location, "BD", "SBLR", "ID", "AD"))
+head(onmy_metadata)
+nrow(onmy_metadata)
+```
+
+## read in the O. mykiss VCF file - this file does not include cutthroat trout hybrids
+```{r}
+onmy_vcf <- read.vcfR("~/Desktop/LG_Proj4/Elwha_datafiles/2023/Elwha_GTSeq_Sans_CCT.vcf")
+onmy_vcf
+```
+
+## extract and filter genotypes for missing data  
+
+this starts with extracting the genotypes from the vcfR object 
+```{r}
+geno <- extract.gt(onmy_vcf)
+dim(geno)
+
+head(geno[,1:10])
+```
+
+check vcf file for missing data 
+```{r}
+myMiss_loci <- apply(geno, MARGIN = 1, function(x){ sum(is.na(x)) })  #MARGIN = 1 refers to rows (loci)
+myMiss_loci <- myMiss_loci/ncol(geno)
+
+barplot(myMiss_loci, main = "Loci")
+title(ylab = "Missingness (%)")
+
+myMiss_sample <- apply(geno, MARGIN = 2, function(x){ sum(is.na(x)) })  #MARGIN = 2 refers to columns (samples)
+myMiss_sample <- myMiss_sample/nrow(geno)
+
+barplot(myMiss_sample, main = "Samples")
+title(ylab = "Missingness (%)")
+
+hist(myMiss_sample, main = "Samples with missing data")
+```
+
+remove samples with >20% missing genotype data 
+```{r}
+onmy_vcf@gt <- onmy_vcf@gt[, c(TRUE, myMiss_sample < 0.2)]
+onmy_vcf
+
+geno_filtered <- extract.gt(onmy_vcf)
+dim(geno_filtered)
+```
+
+## read in loci metadata
+```{r}
+onmy_loci_meta <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Steelhead_Locus_Key_kjl.csv")
+```
+
+## read in SNP coordinate data 
+```{r}
+onmy_snp_coord <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/SNP_Coordinates_CRITFC.csv")
+```
+
+join loci metadata and SNP coords 
+```{r}
+onmy_locus_join <- onmy_snp_coord %>%
+  left_join(onmy_loci_meta, by = "Locus")
+```
+note: there is no loci metadata for snps on omy25. my guess is that this are adaptive...? 
+
+## join loci metadata to extracted genotypes 
+```{r}
+onmy_snp <- rownames(geno_filtered)
+
+onmy_gt_df <- as.data.frame(geno_filtered)
+onmy_gt_df$SNP <- onmy_snp
+
+onmy_gt_meta <- onmy_gt_df %>%
+  left_join(onmy_locus_join, by = "SNP")
+```
+
+## filter data for neutral loci 
+```{r}
+onmy_neutral <- onmy_gt_meta %>%
+  filter(Status == "Neutral")
+dim(onmy_neutral)
+```
+
+we have 229 neutral loci with 1258 individuals 
+
+## seperate filtered neutral genotype data into a pre-dam and post-dam datasets (SBLR have already been removed from vcf)
+```{r}
+pre_id <- onmy_metadata$Sample_ID[which(onmy_metadata$Time=="Pre")]
+during_id <- onmy_metadata$Sample_ID[which(onmy_metadata$Time=="During")]
+pd_id <- c(pre_id, during_id)
+post_id <- onmy_metadata$Sample_ID[which(onmy_metadata$Time=="Post")]
+
+rownames(onmy_neutral) <- onmy_neutral$SNP
+neutral_tG <- t(onmy_neutral[,c(1:1246)])   ###this removes the extra metadata columns 
+
+geno_neutral_pre <- neutral_tG[rownames(neutral_tG) %in% pd_id,]
+dim(geno_neutral_pre)
+geno_neutral_post <- neutral_tG[rownames(neutral_tG) %in% post_id,]
+dim(geno_neutral_post)
+```
+
+** "During" samples are grouped with the "Pre" samples 
+
+# create genind objects 
+
+### neutral loci pre-dam removal
+```{r}
+colmf <- gsub("\\.", "_", colnames(geno_neutral_pre))
+colnames(geno_neutral_pre) <- colmf
+
+n_pre_loci <- colnames(geno_neutral_pre)
+n_pre_ind <- rownames(geno_neutral_pre)
+
+ind_df <- data.frame(n_pre_ind)
+colnames(ind_df) <- "Sample_ID"
+
+onmy_n_pre_meta <- ind_df %>%
+  left_join(onmy_metadata, by = "Sample_ID")
+
+n_pre_location <- onmy_n_pre_meta$Location
+
+genind_n_pre <- df2genind(geno_neutral_pre,
+                         sep="/",
+                         ind.names=n_pre_ind,
+                         loc.names=n_pre_loci, 
+                         pop = n_pre_location,     
+                         ploidy = 2)
+genind_n_pre
+```
+
+### neutral loci post-dam removal
+```{r}
+colmf <- gsub("\\.", "_", colnames(geno_neutral_post))
+colnames(geno_neutral_post) <- colmf
+
+n_post_loci <- colnames(geno_neutral_post)
+n_post_ind <- rownames(geno_neutral_post)
+
+ind_df <- data.frame(n_post_ind)
+colnames(ind_df) <- "Sample_ID"
+
+onmy_n_post_meta <- ind_df %>%
+  left_join(onmy_metadata, by = "Sample_ID")
+
+n_post_location <- onmy_n_post_meta$Location   
+
+genind_n_post <- df2genind(geno_neutral_post,
+                         sep="/",
+                         ind.names=n_post_ind,
+                         loc.names=n_post_loci, 
+                         pop = n_post_location,     
+                         ploidy = 2)
+genind_n_post
+```
+
+##convert genind to genlight objects 
+
+```{r, message=FALSE}
+#install_github("green-striped-gecko/dartR")
+library(dartR)
+
+genlit_n_pre <- gi2gl(genind_n_pre)
+genlit_n_post <- gi2gl(genind_n_post)
+```
+
+
+set color palette
+Colors for locations:
+"brown1" (AD)
+"blue2" (BD)
+"darkgreen" (ID)
+"limegreen" (SBLR)
+
+```{r}
+mycol <- c("blue2", "darkgreen", "brown1")
+```
+
+# Now for the DAPC
+
+i am following this tutorial: https://adegenet.r-forge.r-project.org/files/tutorial-dapc.pdf
+
+find clusters
+```{r}
+grp_n_pre <- find.clusters(genlit_n_pre, max.n.clust=40, n.pca=100)
+```
+
+check Kstat
+```{r}
+grp_n_pre$Kstat
+```
+
+well, technically, K=4 is lowest, but K stops decreasing much after 2 so I'll go with that 
+```{r}
+grp_n_pre_2 <- find.clusters(genlit_n_pre, max.n.clust=40, n.clust = 2)
+```
+
+run dapc
+```{r}
+dapc_n_pre_2 <- dapc(genlit_n_pre, grp_n_pre_2$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_n_pre_2
+```
+
+plot DAPC using ggplot
+```{r}
+dapc_n_pre_2_scores <- as.data.frame(dapc_n_pre_2$tab)
+dapc_n_pre_2_scores$Assigned_Pop <- dapc_n_pre_2$grp
+dapc_n_pre_2_scores$Sampling_Location <- onmy_n_pre_meta$Location
+
+set.seed(9)
+onmy_dapc_n_pre_2 <- ggplot(dapc_n_pre_2_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+  geom_point(size=2, aes(colour=Sampling_Location )) + 
+  stat_ellipse(level = 0.95, size = 1) + 
+  scale_color_manual(values = mycol) + 
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  theme_bw() + 
+  theme(legend.position = "none")
+onmy_dapc_n_pre_2
+```
+
+save pc1 values 
+
+```{r}
+write.csv(dapc_n_pre_2_scores, "~/Desktop/LG_Proj4/Elwha_genetics/outputs/MAR2023/onmy_n_pre_dapc.csv")
+```
+
+
+### neutral post dam removal 
+
+find clusters
+```{r}
+grp_n_post <- find.clusters(genlit_n_post, max.n.clust=40, n.pca=100)
+```
+
+check Kstat
+```{r}
+grp_n_post$Kstat
+```
+
+will use K=3 - not much decrease in K beyound that 
+```{r}
+grp_n_post_3 <- find.clusters(genlit_n_post, max.n.clust=40, n.clust = 3)
+```
+
+run dapc
+```{r}
+dapc_n_post_3 <- dapc(genlit_n_post, grp_n_post_3$grp, n.pca = 50, n.da = 3)
+dapc_n_post_3
+```
+
+plot DAPC using ggplot
+```{r}
+dapc_n_post_3_scores <- as.data.frame(dapc_n_post_3$tab)
+dapc_n_post_3_scores$Assigned_Pop <- dapc_n_post_3$grp
+dapc_n_post_3_scores$Sampling_Location <- onmy_n_post_meta$Location
+
+set.seed(9)
+onmy_dapc_n_post_3 <- ggplot(dapc_n_post_3_scores, aes(x=PC1, y=PC2, shape = Assigned_Pop)) + 
+  geom_point(size=2, aes(colour=Sampling_Location )) + 
+  stat_ellipse(level = 0.95, size = 1) + 
+  scale_color_manual(values = mycol) + 
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  theme_bw() + 
+  theme(legend.position = "none")
+onmy_dapc_n_post_3
+```
+
+```{r}
+write.csv(dapc_n_post_3_scores, "~/Desktop/LG_Proj4/Elwha_genetics/outputs/MAR2023/onmy_n_post_dapc.csv")
+```
+
+# now for the Chinook salmon data
+
+## read in chinook data
+```{r}
+chin_meta <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/2023/Elwha_Chinook_Formatted_wDownstreamLatLongrkm_kjl.csv")
+```
+
+## read in the chinook VCF file - this file does not include cutthroat trout hyrids
+```{r}
+chin_vcf <- read.vcfR("~/Desktop/LG_Proj4/Elwha_datafiles/ElwhaGenos.vcf")
+chin_vcf
+```
+
+## extract and filter genotypes for missing data  
+
+this starts with extracting the genotypes from the vcfR object 
+```{r}
+c_geno <- extract.gt(chin_vcf)
+dim(c_geno)
+
+head(c_geno[,1:10])
+```
+
+check vcf file for missing data 
+```{r}
+myMiss_loci <- apply(c_geno, MARGIN = 1, function(x){ sum(is.na(x)) })  #MARGIN = 1 refers to rows (loci)
+myMiss_loci <- myMiss_loci/ncol(c_geno)
+
+barplot(myMiss_loci, main = "Loci")
+title(ylab = "Missingness (%)")
+
+myMiss_sample <- apply(c_geno, MARGIN = 2, function(x){ sum(is.na(x)) })  #MARGIN = 2 refers to columns (samples)
+myMiss_sample <- myMiss_sample/nrow(c_geno)
+
+barplot(myMiss_sample, main = "Samples")
+title(ylab = "Missingness (%)")
+
+hist(myMiss_sample, main = "Samples with missing data")
+```
+
+remove samples with >20% missing genotype data 
+```{r}
+chin_vcf@gt <- chin_vcf@gt[, c(TRUE, myMiss_sample < 0.2)]
+chin_vcf
+
+c_geno_filtered <- extract.gt(chin_vcf)
+dim(c_geno_filtered)
+```
+
+
+
+## read in loci metadata
+
+```{r}
+chin_loci_key <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Chinook_Locus_Key.csv")
+chin_loci_key <- chin_loci_key[,c(1:9)]
+```
+
+## join loci metadata to extracted genotypes 
+```{r}
+chin_snp <- rownames(c_geno_filtered)
+
+chin_gt_df <- as.data.frame(c_geno_filtered)
+chin_gt_df$Locus_Name <- chin_snp
+
+chin_gt_meta <- chin_gt_df %>%
+  left_join(chin_loci_key, by = "Locus_Name")
+```
+
+## filter data by neutral and adaptive loci 
+```{r}
+chin_neutral <- chin_gt_meta %>%
+  filter(Status == "Neutral")
+dim(chin_neutral)
+```
+
+## seperate filtered neutral and adaptive genotype data into a pre-dam (188 ind) and post-dam (163 ind) datasets 
+```{r}
+pre_id <- chin_meta$Sample_ID[which(chin_meta$Time=="Pre")]
+during_id <- chin_meta$Sample_ID[which(chin_meta$Time=="During")]
+pd_id <- c(pre_id, during_id)
+post_id <- chin_meta$Sample_ID[which(chin_meta$Time=="Post")]
+
+rownames(chin_neutral) <- chin_neutral$Locus_Name
+neutral_tG <- t(chin_neutral[,c(1:359)])  
+
+geno_neutral_pre <- neutral_tG[rownames(neutral_tG) %in% pd_id,]
+dim(geno_neutral_pre)
+geno_neutral_post <- neutral_tG[rownames(neutral_tG) %in% post_id,]
+dim(geno_neutral_post)
+```
+
+# create genind objects for chinook 
+
+### neutral loci pre-dam removal
+```{r}
+colmf <- gsub("\\.", "_", colnames(geno_neutral_pre))
+colnames(geno_neutral_pre) <- colmf
+
+n_pre_loci <- colnames(geno_neutral_pre)
+n_pre_ind <- rownames(geno_neutral_pre)
+
+ind_df <- data.frame(n_pre_ind)
+colnames(ind_df) <- "Sample_ID"
+chin_n_pre_meta <- ind_df %>%
+  left_join(chin_meta, by = "Sample_ID")
+
+n_pre_location <- chin_n_pre_meta$Location
+
+chin_genind_n_pre <- df2genind(geno_neutral_pre,
+                         sep="/",
+                         ind.names=n_pre_ind,
+                         loc.names=n_pre_loci, 
+                         pop = n_pre_location,     
+                         ploidy = 2)
+chin_genind_n_pre
+```
+
+### neutral loci post-dam removal
+```{r}
+colmf <- gsub("\\.", "_", colnames(geno_neutral_post))
+colnames(geno_neutral_post) <- colmf
+
+n_post_loci <- colnames(geno_neutral_post)
+n_post_ind <- rownames(geno_neutral_post)
+
+ind_df <- data.frame(n_post_ind)
+colnames(ind_df) <- "Sample_ID"
+chin_n_post_meta <- ind_df %>%
+  left_join(chin_meta, by = "Sample_ID")
+
+n_post_location <- chin_n_post_meta$Location
+
+chin_genind_n_post <- df2genind(geno_neutral_post,
+                         sep="/",
+                         ind.names=n_post_ind,
+                         loc.names=n_post_loci, 
+                         pop = n_post_location,     
+                         ploidy = 2)
+chin_genind_n_post
+```
+
+##convet genind to genlight objects 
+
+```{r, message=FALSE}
+#install_github("green-striped-gecko/dartR")
+library(dartR)
+
+chin_genlit_n_pre <- gi2gl(chin_genind_n_pre)
+chin_genlit_n_post <- gi2gl(chin_genind_n_post)
+```
+
+# chinook DAPC
+
+### pre-dam removal neutral loci
+
+find clusters
+```{r}
+grp_n_pre <- find.clusters(chin_genlit_n_pre, max.n.clust=40, n.pca=100)
+```
+
+check Kstat
+```{r}
+grp_n_pre$Kstat
+```
+
+not much change in K ... will go with K = 1 
+```{r}
+grp_n_pre_1 <- find.clusters(chin_genlit_n_pre, max.n.clust=40, n.clust = 1)
+grp_n_pre_2 <- find.clusters(chin_genlit_n_pre, max.n.clust=40, n.clust = 2)
+```
+
+run dapc
+```{r}
+#dapc_n_pre_1 <- dapc(chin_genlit_n_pre, grp_n_pre_1$grp, n.pca = 40) #keep first 40 PCs; and 10 n.da
+#dapc_n_pre_1
+
+dapc_n_pre_2 <- dapc(chin_genlit_n_pre, grp_n_pre_2$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_n_pre_2
+```
+
+plot DAPC using ggplot
+```{r}
+dapc_n_pre_2_scores <- as.data.frame(dapc_n_pre_2$tab)
+dapc_n_pre_2_scores$Assigned_Pop <- dapc_n_pre_2$grp
+dapc_n_pre_2_scores$Sampling_Location <- chin_n_pre_meta$Location
+dapc_n_pre_2_scores <- dapc_n_pre_2_scores %>%  
+  dplyr::mutate(Sampling_Location = fct_relevel(Sampling_Location, "BD", "ID", "AD"))
+
+set.seed(9)
+chin_dapc_n_pre_2 <- ggplot(dapc_n_pre_2_scores, aes(x=PC1, y=PC2)) + #shape = Assigned_Pop)) + 
+  geom_point(size=2, aes(colour=Sampling_Location )) + 
+  #stat_ellipse(level = 0.95, size = 1) + 
+  scale_color_manual(values = mycol) + 
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  theme_bw() + 
+  theme(legend.position = "none")
+chin_dapc_n_pre_2
+```
+
+
+```{r}
+write.csv(dapc_n_pre_2_scores, "~/Desktop/LG_Proj4/Elwha_genetics/outputs/Feb2023/chin_n_pre_dapc.csv")
+```
+
+### post-dam removal neutral loci
+
+find clusters
+```{r}
+grp_n_post <- find.clusters(chin_genlit_n_post, max.n.clust=10, n.pca=100)
+```
+check Kstat
+```{r}
+grp_n_post$Kstat
+```
+
+```{r}
+grp_n_post_1 <- find.clusters(chin_genlit_n_post, max.n.clust=40, n.clust = 1)
+grp_n_post_2 <- find.clusters(chin_genlit_n_post, max.n.clust=40, n.clust = 2)
+```
+
+run dapc
+```{r}
+#dapc_n_post_1 <- dapc(chin_genlit_n_post, grp_n_post_1$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+#dapc_n_post_1
+
+dapc_n_post_2 <- dapc(chin_genlit_n_post, grp_n_post_2$grp, n.pca = 40, n.da = 10) #keep first 40 PCs; and 10 n.da
+dapc_n_post_2
+```
+
+plot DAPC using ggplot
+```{r}
+dapc_n_post_2_scores <- as.data.frame(dapc_n_post_2$tab)
+dapc_n_post_2_scores$Assigned_Pop <- dapc_n_post_2$grp
+dapc_n_post_2_scores$Sampling_Location <- chin_n_post_meta$Location
+dapc_n_post_2_scores <- dapc_n_post_2_scores %>%  
+  dplyr::mutate(Sampling_Location = fct_relevel(Sampling_Location, "BD", "ID", "AD"))
+
+
+set.seed(9)
+chin_dapc_n_post_2 <- ggplot(dapc_n_post_2_scores, aes(x=PC1, y=PC2)) + #, shape = Assigned_Pop)) + 
+  geom_point(size=2, aes(colour=Sampling_Location )) + 
+  #stat_ellipse(level = 0.95, size = 1) + 
+  scale_color_manual(values = mycol) + 
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  theme_bw() + 
+  theme(legend.position = "none")
+chin_dapc_n_post_2
+```
+
+
+```{r}
+write.csv(dapc_n_post_2_scores, "~/Desktop/LG_Proj4/Elwha_genetics/outputs/Feb2023/chin_n_post_dapc.csv")
+```
+
+
+neutral loci
+```{r}
+library(cowplot)
+
+png('~/Desktop/LG_Proj4/Elwha_genetics/outputs/MAR2023/DAPC.png',   
+    width     = 6,
+    height    = 6,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+
+neutral <- plot_grid(onmy_dapc_n_pre_2, onmy_dapc_n_post_3, chin_dapc_n_pre_2, chin_dapc_n_post_2, labels = "AUTO", ncol = 2)
+neutral
+```
+
+
+export legend to use 
+```{r}
+png('~/Desktop/LG_Proj4/Elwha_genetics/outputs/MAR2023/legend.png',   
+    width     = 3,
+    height    = 3,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+
+legend <- cowplot::get_legend(onmy_dapc_n_post_3)
+
+library(grid)
+library(gridExtra)
+grid.newpage()
+grid.draw(legend)
+```
+
+
+
+

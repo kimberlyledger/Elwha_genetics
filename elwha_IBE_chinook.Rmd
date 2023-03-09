@@ -1,0 +1,263 @@
+---
+title: "elwha_IBE_chinook"
+author: "Kimberly Ledger"
+date: "2023-03-08"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+load libraries
+```{r, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(psych)
+library(corrplot)
+library(usdm)
+library(lme4)
+library(stargazer)
+```
+
+
+## Chinook 
+
+```{r}
+chin_neutral_scores <- read.csv("~/Desktop/LG_Proj4/Elwha_genetics/outputs/Feb2023/chin_n_post_dapc.csv") %>%
+  rename(Sample_ID = X) %>%
+  dplyr::select(Sample_ID, PC1)
+
+chin_adaptive_scores1 <- readRDS("~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/IBE_input_Chinook.rds") %>%
+  rename(Sample_ID = sampleID) %>%
+  dplyr::select(Sample_ID, SpringAlleleFreq)
+
+chin_adaptive_scores2 <- readRDS("~/Desktop/LG_Proj4/Elwha_datafiles/2023/IBE_input_Chinook.rds") %>%
+  rename(Sample_ID = sampleID) %>%
+  dplyr::select(Sample_ID, SpringAlleleFreq)
+
+enviro <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/enviro_summary_reduced_22Feb2023.csv") %>%
+  rename(Sampling_Site = X)
+
+chin_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/2023/Elwha_Chinook_Formatted_wDownstreamLatLongrkm_kjl.csv") %>%
+  filter(Time == "Post")
+```
+
+join the environmental data to the list of omy collection sites
+```{r}
+chin_sites <- chin_metadata %>%
+  distinct(Sampling_Site)
+chin_sites
+
+chin_sites_enviro <- chin_sites %>%
+  left_join(enviro, by = "Sampling_Site")
+```
+
+set the single Reach 3,4 fish to Reach 3 
+```{r}
+chin_metadata$Sampling_Site[which(chin_metadata$Sampling_Site == "Reach 3,4")] <-"Reach 3"
+```
+
+create a data frame 
+```{r}
+chin_df <- chin_metadata %>%
+  dplyr::select(Sample_ID, Time, Location, Sampling_Site) %>%
+  left_join(chin_sites_enviro, by = "Sampling_Site") %>%
+  left_join(chin_neutral_scores, by = "Sample_ID") %>%
+  separate(Sample_ID, c("Sample_ID", NA)) %>%
+  left_join(chin_adaptive_scores, by = "Sample_ID") %>%
+  arrange(OUT_DIST) %>%
+  drop_na(PC1)
+```
+
+
+### center and scale explainatory variables for PCA
+```{r}
+sample <- chin_df$Sample_ID
+PC1 <- chin_df$PC1
+PropSpring <- chin_df$SpringAlleleFreq
+site <- chin_df$Sampling_Site
+dist <- chin_df$OUT_DIST
+
+for (i in 1:length(colnames(chin_df))){
+  if (is.numeric(chin_df[, i])==TRUE)
+    chin_df[, i] <- as.numeric(scale(chin_df[, i]))
+  else
+    chin_df[, i] <- chin_df[, i]
+}
+
+## replace values i don't want scaled
+chin_df$PC1 <- PC1
+chin_df$SpringAlleleFreq <- PropSpring
+```
+
+check data frame structure
+```{r}
+chin_df$Sampling_Site <- as.factor(chin_df$Sampling_Site)
+str(chin_df)
+```
+
+response = PC1 (continuous), the loading score of PC1 from the DAPC analysis using neutral loci OR alleleS_count1 (continuous), the proportion of summer run alleles (?? check this)
+explanatory = environmental vars (standardized)
+random effect = sampling site
+
+## look at the distribution of the response variable 
+```{r}
+hist(chin_df$PC1)
+hist(chin_df$SpringAlleleFreq)
+```
+
+
+## subset dataframe to include all sites and only environmental variables with no missing data - NO MISSING DATA for Chinook sites 
+```{r}
+#chin_df_reduced <- chin_df %>%
+#  dplyr::select(!gravels) %>%
+#  dplyr::select(!fines)
+```
+
+## fit candidate models for datasets 
+
+1. Null model: OUT_DIST (aka. Rkm)
+2. Climate model: MWMT (max weekly max temp) and PRECIP
+3. Flow model: FlowVel, SLOPE 
+4. Habitat type: CANOPY, IP_Chinook, Pool_freq, Logjams, spawnable, gravel, fines 
+5. Full model: CANOPY, SLOPE, PRECIP, FlowVel, AWAT or MWMT, IP_Steelhd, Pool_freq, Logjams, Spawnable
+
+## check for multicollinearity - climate model 
+```{r}
+df <- with(chin_df, data.frame(MWMT, PRECIP))
+usdm::vif(df) 
+```
+
+will keep both 
+
+## check for multicollinearity - flow model 
+```{r}
+df <- with(chin_df, data.frame(FlowVel, SLOPE))
+usdm::vif(df) 
+```
+
+will keep both 
+
+## check for multicollinearity - habitat model 
+```{r}
+df <- with(chin_df, data.frame(CANOPY, IP_Chinook, Pool_freq, Spawnable, Logjams, gravels, fines))
+usdm::vif(df) 
+```
+
+drop Logjams and CANOPY 
+
+## check for multicollinearity - habitat model again
+```{r}
+df <- with(chin_df, data.frame(IP_Chinook, Pool_freq, Spawnable, gravels, fines))
+usdm::vif(df) 
+```
+
+good 
+
+## check for multicollinearity - full 
+```{r}
+df <- with(chin_df, data.frame(MWMT, PRECIP, FlowVel, SLOPE, IP_Chinook, Pool_freq, Spawnable, gravels, fines))
+usdm::vif(df) 
+```
+
+look at correlations to see what to drop
+```{r}
+corr_full <- corr.test(df, method = "spearman", adjust = "none")
+corr_full_plot <- corrplot(corr_full$r, order = "FPC", method = "number", type = "lower", tl.cex = 0.7, tl.col = rgb(0, 0, 0))
+```
+
+start by dropping SLOPE and gravels
+
+## check for multicollinearity - full 
+```{r}
+df <- with(chin_df, data.frame(MWMT, PRECIP, FlowVel, IP_Chinook, Pool_freq, Spawnable, fines))
+usdm::vif(df) 
+```
+
+drop MWMT 
+
+## check for multicollinearity - full 
+```{r}
+df <- with(chin_df, data.frame(PRECIP, FlowVel, IP_Chinook, Pool_freq, Spawnable, fines))
+usdm::vif(df) 
+```
+
+## set up models - remove random effect 
+```{r}
+mod1 <- lm(PC1 ~ OUT_DIST, data = chin_df)
+mod2 <- lm(PC1 ~ MWMT + PRECIP, data = chin_df)
+mod3 <- lm(PC1 ~ FlowVel + SLOPE, data = chin_df)
+mod4 <- lm(PC1 ~ IP_Chinook + Pool_freq + Spawnable + gravels + fines, data = chin_df)
+mod5 <- lm(PC1 ~ PRECIP + FlowVel + IP_Chinook + Pool_freq + Spawnable + fines, data = chin_df)
+```
+
+
+## compare models 
+```{r}
+stargazer(mod1, mod2, mod3, mod4, mod5, 
+          type = "text",
+          digits = 3, 
+          ci = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          digit.separator = "")
+```
+
+week 6 tutorial suggests using the ML fit, as AIC is not valid for REML... 
+"The function extractAIC refits the models with ‘REML=FALSE’ to obtain AIC values that are comparable between models with different fixed effects or between models fitted with functions lm and lmer." 
+
+```{r}
+aic_vals <- c(extractAIC(mod1)[2], extractAIC(mod2)[2], extractAIC(mod3)[2], 
+              extractAIC(mod4)[2], extractAIC(mod5)[2])
+names(aic_vals) <- c("mod1","mod2","mod3", "mod4", "mod5")
+aic_vals
+```
+
+**hmm here mod1 (null - rKm) shows lowest AIC with mod3 (flow) close behind**
+
+
+## check residuals of model 
+```{r}
+plot(mod1, abline = c(0,0))
+#par(mfrow=c(1,2))
+#hist(residuals(mod1)) 
+#qqnorm(residuals(mod1))
+```
+
+qq plot a bit funky
+
+
+## now lets run the adaptive models 
+
+GLM 
+```{r}
+mod1_glm <- glm(SpringAlleleFreq ~ OUT_DIST , family = "binomial", data = chin_df)
+mod2_glm <- glm(SpringAlleleFreq ~ MWMT + PRECIP, family = "binomial", data = chin_df)
+mod3_glm <- glm(SpringAlleleFreq ~ FlowVel + SLOPE, family = "binomial", data = chin_df)
+mod4_glm <- glm(SpringAlleleFreq ~ IP_Chinook + Pool_freq + Spawnable + gravels + fines, family = "binomial", data = chin_df)
+mod5_glm <- glm(SpringAlleleFreq ~ PRECIP + FlowVel + IP_Chinook + Pool_freq + Spawnable + fines, family = "binomial", data = chin_df)
+```
+
+```{r}
+library(bbmle) # for AICtab
+AICtab(mod1_glm, mod2_glm, mod3_glm, mod4_glm, mod5_glm)
+```
+
+**mod3 (flow) and mod1 (rKM) top models** 
+
+```{r}
+stargazer(mod1_glm, mod2_glm, mod3_glm, mod4_glm, mod5_glm, 
+          type = "text",
+          digits = 3, 
+          ci = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          digit.separator = "")
+```
+
+## check residuals of model 
+```{r}
+plot(mod3_glm, abline = c(0,0))
+#par(mfrow=c(1,2))
+#hist(residuals(mod3_glm)) 
+#qqnorm(residuals(mod3_glm))
+```

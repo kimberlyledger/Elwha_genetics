@@ -3,6 +3,8 @@ elwha_IBE
 Kimberly Ledger
 2022-11-21
 
+## last update: 8 March 2023
+
 ## starting by just working with post-dam removal scores
 
 load libraries
@@ -22,22 +24,21 @@ library(stargazer)
 
 ## steelhead
 
-load data notes: using elkhorn20; added back in OUT_DIST manually ;
-separated sites with same environmental data into two rows manually
+load data notes: added back in OUT_DIST manually
 
 ``` r
-omy_neutral_scores <- read.csv("~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/onmy_n_post_dapc.csv") %>%
+omy_neutral_scores <- read.csv("~/Desktop/LG_Proj4/Elwha_genetics/outputs/MAR2023/onmy_n_post_dapc.csv") %>%
   rename(Sample_ID = X) %>%
   dplyr::select(Sample_ID, PC1)
 
-omy_adaptive_scores <- readRDS("~/Desktop/LG_Proj4/Elwha_genetics/outputs/final/IBE_input_Steelhead.rds") %>%
-  rename(Sample_ID = sampleID) %>%
+omy_adaptive_scores <- readRDS("~/Desktop/LG_Proj4/Elwha_datafiles/2023/IBE_input_Steelhead.rds") %>%
+  #rename(Sample_ID = sampleID) %>%
   dplyr::select(Sample_ID, alleleS_count1)
 
-enviro <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/enviro_summary_edit.csv") %>%
+enviro <- read.csv("~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/enviro_summary_reduced_22Feb2023.csv") %>%
   rename(Sampling_Site = X)
 
-omy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/Elwha_Steelhead_Formatted_kjl.csv") %>%
+omy_metadata <- read.csv("~/Desktop/LG_Proj4/Elwha_datafiles/2023/Elwha_Steelhead_Formatted_Post_022023_sitesfixed_kjl.csv") %>%
   filter(Time == "Post")
 ```
 
@@ -46,248 +47,23 @@ join the environmental data to the list of omy collection sites
 ``` r
 omy_sites <- omy_metadata %>%
   distinct(Sampling_Site)
-omy_sites
-```
+#omy_sites
 
-    ##                Sampling_Site
-    ## 1          elwha_river_lower
-    ## 2                lekt_outlet
-    ## 3          elwha_river_mouth
-    ## 4                wdfw_outlet
-    ## 5         elwha_river_middle
-    ## 6           hunts_high_bluff
-    ## 7                griff_creek
-    ## 8                    altaire
-    ## 9                       gage
-    ## 10                 windy_arm
-    ## 11           fishermans_bend
-    ## 12                   elkhorn
-    ## 13                     mills
-    ## 14                     hayes
-    ## 15                    geyser
-    ## 16             madison_creek
-    ## 17              hughes_creek
-    ## 18        ds_fishermans_bend
-    ## 19                   boulder
-    ## 20                long_creek
-    ## 21              chicago_camp
-    ## 22 south_branch_little_river
-    ## 23         elwha_river_upper
-    ## 24         ds_ranger_station
-
-``` r
 omy_sites_enviro <- omy_sites %>%
   left_join(enviro, by = "Sampling_Site")
 ```
-
-note: return to see if elkhorn samplings should be divided into two
-separate sites for analyses… for now i am assigning all elkhorn samples
-to elkhorn20 for environmental analyses
 
 create a data frame
 
 ``` r
 omy_df <- omy_metadata %>%
-  dplyr::select(Sample_ID, Time, Location, Sampling_Site) %>%
+  dplyr::select(Sample_ID, Life_Stage, Life_History_Type, Sampling_Site) %>%
   left_join(omy_sites_enviro, by = "Sampling_Site") %>%
   left_join(omy_neutral_scores, by = "Sample_ID") %>%
   left_join(omy_adaptive_scores, by = "Sample_ID") %>%
   arrange(OUT_DIST) %>%
-  filter(Sampling_Site != "south_branch_little_river") %>%
   drop_na(PC1)
 ```
-
-start by visualizing some individual relationships before running
-models - neutral response variable
-
-``` r
-ggplot(omy_df, aes(x=CANOPY, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=Pool_frequency, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 18 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=Logjams, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 18 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-3.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=spawnable_area_steelhd, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 18 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-4.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=ST_S36_2015, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-5.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=OUT_DIST, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-6.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=FlowVel, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-7.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=BFQ, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-8.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=IP_Steelhd, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-9.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=Percent_gravels, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 406 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-10.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=Percent_fines, y=PC1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 406 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-5-11.png)<!-- -->
-
-start by visualizing some individual relationships before running
-models - adaptive response variable
-
-``` r
-ggplot(omy_df, aes(x=CANOPY, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 4 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=Pool_frequency, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 22 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=Logjams, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 22 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-3.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=spawnable_area_steelhd, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 22 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-4.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=ST_S36_2015, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 4 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-5.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=OUT_DIST, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 4 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-6.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=FlowVel, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 4 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-7.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=BFQ, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 4 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-8.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=IP_Steelhd, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 4 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-9.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=Percent_gravels, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 409 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-10.png)<!-- -->
-
-``` r
-ggplot(omy_df, aes(x=Percent_fines, y=alleleS_count1, col = Sampling_Site)) + 
-  geom_point()
-```
-
-    ## Warning: Removed 409 rows containing missing values (geom_point).
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-6-11.png)<!-- -->
 
 ## run some mixed effect models
 
@@ -296,7 +72,7 @@ ggplot(omy_df, aes(x=Percent_fines, y=alleleS_count1, col = Sampling_Site)) +
 <https://bookdown.org/hhwagner1/LandGenCourse_book/WE_6.html#WE_6>
 <https://bookdown.org/hhwagner1/LandGenCourse_book/WE_12.html#WE_12>
 
-### center and scale explainatory variables for PCA
+### center and scale explainatory variables
 
 ``` r
 sample <- omy_df$Sample_ID
@@ -324,30 +100,32 @@ omy_df$Sampling_Site <- as.factor(omy_df$Sampling_Site)
 str(omy_df)
 ```
 
-    ## 'data.frame':    841 obs. of  18 variables:
-    ##  $ Sample_ID             : chr  "51029_E12_351" "51761_17_005" "51761_17_008" "51686_118" ...
-    ##  $ Time                  : chr  "Post" "Post" "Post" "Post" ...
-    ##  $ Location              : chr  "BD" "BD" "BD" "BD" ...
-    ##  $ Sampling_Site         : Factor w/ 21 levels "altaire","boulder",..: 9 9 9 16 16 16 16 16 16 16 ...
-    ##  $ Pool_frequency        : num  -0.943 -0.943 -0.943 -0.943 -0.943 ...
-    ##  $ Logjams               : num  0.824 0.824 0.824 0.824 0.824 ...
-    ##  $ spawnable_area_steelhd: num  -0.13 -0.13 -0.13 -0.264 -0.264 ...
-    ##  $ CANOPY                : num  -0.23 -0.23 -0.23 -0.359 -0.359 ...
-    ##  $ ST_S36_2015           : num  0.982 0.982 0.982 0.982 0.982 ...
-    ##  $ FlowVel               : num  -0.992 -0.992 -0.992 -0.941 -0.941 ...
-    ##  $ BFQ                   : num  -0.751 -0.751 -0.751 -0.693 -0.693 ...
-    ##  $ IP_Chinook            : num  0.8 0.8 0.8 0.8 0.8 ...
-    ##  $ IP_Steelhd            : num  -1.2 -1.2 -1.2 -1.19 -1.19 ...
-    ##  $ Percent_gravels       : num  -2.19 -2.19 -2.19 1.41 1.41 ...
-    ##  $ Percent_fines         : num  -3.923 -3.923 -3.923 0.197 0.197 ...
-    ##  $ OUT_DIST              : num  -0.987 -0.987 -0.987 -0.964 -0.964 ...
-    ##  $ PC1                   : num  -0.427 0.195 -0.468 -0.894 -0.799 ...
-    ##  $ alleleS_count1        : num  0.05 0.05 0 0.05 0.05 0 0 0.05 0 0.05 ...
+    ## 'data.frame':    802 obs. of  20 variables:
+    ##  $ Sample_ID        : chr  "51761_17_005" "51761_17_008" "51686_15_92" "51686_15_93" ...
+    ##  $ Life_Stage       : chr  "Adult" "Adult" "Adult" "Adult" ...
+    ##  $ Life_History_Type: chr  "Steelhead" "Steelhead" "Steelhead" "Steelhead" ...
+    ##  $ Sampling_Site    : Factor w/ 19 levels "aldwell","altaire",..: 9 9 15 15 15 15 15 15 15 15 ...
+    ##  $ CANOPY           : num  -0.303 -0.303 -0.442 -0.442 -0.442 ...
+    ##  $ SLOPE            : num  -1.4 -1.4 -1.4 -1.4 -1.4 ...
+    ##  $ PRECIP           : num  -1.27 -1.27 -1.27 -1.27 -1.27 ...
+    ##  $ FlowVel          : num  -0.97 -0.97 -0.938 -0.938 -0.938 ...
+    ##  $ AWAT             : num  0.874 0.874 0.874 0.874 0.874 ...
+    ##  $ IP_Steelhd       : num  -1.32 -1.32 -1.32 -1.32 -1.32 ...
+    ##  $ IP_Chinook       : num  1.22 1.22 1.22 1.22 1.22 ...
+    ##  $ Pool_freq        : num  -0.843 -0.843 -0.843 -0.843 -0.843 ...
+    ##  $ Logjams          : num  0.774 0.774 0.774 0.774 0.774 ...
+    ##  $ Spawnable        : num  -0.08 -0.08 -0.226 -0.226 -0.226 ...
+    ##  $ fines            : num  -1.554 -1.554 0.946 0.946 0.946 ...
+    ##  $ gravels          : num  -2.227 -2.227 0.823 0.823 0.823 ...
+    ##  $ MWMT             : num  0.726 0.726 0.726 0.726 0.726 ...
+    ##  $ OUT_DIST         : num  -0.973 -0.973 -0.948 -0.948 -0.948 ...
+    ##  $ PC1              : num  -0.186 0.637 0.62 0.967 0.725 ...
+    ##  $ alleleS_count1   : num  0.0556 0 0.4444 0 NA ...
 
 response = PC1 (continuous), the loading score of PC1 from the DAPC
 analysis using neutral loci OR alleleS_count1 (continuous), the
-proportion of summer run alleles (?? check this) explanatory =
-environmental vars (standardized) random effect = sampling site
+proportion of early run alleles explanatory = environmental vars
+(centered and scaled) random effect = sampling site
 
 ## look at the distribution of the response variable
 
@@ -355,98 +133,143 @@ environmental vars (standardized) random effect = sampling site
 hist(omy_df$PC1)
 ```
 
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ``` r
 hist(omy_df$alleleS_count1)
 ```
 
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
 
-PC1 okay, but will transform alleleS
+PC1 okay, but will need to use a different distribution for alleleS
 
-``` r
-omy_df$alleleS_count1_asin <- asin(sqrt(omy_df$alleleS_count1))
-hist(omy_df$alleleS_count1_asin)
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
-
-## subset dataframe to include all sites and only environmental variables with no missing data
+## subset dataframe to removed environmental data missing from some sites.
 
 ``` r
 omy_df_reduced <- omy_df %>%
-  dplyr::select(!Pool_frequency) %>%
-  dplyr::select(!Logjams) %>%
-  dplyr::select(!spawnable_area_steelhd) %>%
-  dplyr::select(!Percent_gravels) %>%
-  dplyr::select(!Percent_fines)
+  dplyr::select(!gravels) %>%
+  dplyr::select(!fines)
 ```
 
-## fit candidate models for reduced dataset
+## fit candidate models for datasets
 
 1.  Null model: OUT_DIST (aka. Rkm)
-2.  Full model: ST_S36_2015, FlowVel, BFQ, CANOPY, IP_Steelhd
-3.  Temperature model: ST_S36_2015
-4.  Flow model: FlowVel, BFQ
-5.  Habitat type: CANOPY, IP_Steelhd
+2.  Climate model: MWMT (max weekly max temp) and PRECIP
+3.  Flow model: FlowVel, SLOPE
+4.  Habitat type: CANOPY, IP_Steelhd, Pool_freq, Logjams, spawnable
+5.  Full model: CANOPY, SLOPE, PRECIP, FlowVel, MWMT, IP_Steelhd,
+    Pool_freq, Logjams, Spawnable
 
-## check for multicollinearity (again)
+## check for multicollinearity - climate model
 
 ``` r
-df <- with(omy_df_reduced, data.frame(ST_S36_2015, FlowVel, BFQ, CANOPY, IP_Steelhd))
+df <- with(omy_df_reduced, data.frame(MWMT, PRECIP))
 usdm::vif(df) 
 ```
 
-    ##     Variables       VIF
-    ## 1 ST_S36_2015  6.096731
-    ## 2     FlowVel  9.087211
-    ## 3         BFQ 14.649657
-    ## 4      CANOPY  2.601199
-    ## 5  IP_Steelhd  4.550752
+    ##   Variables      VIF
+    ## 1      MWMT 5.302078
+    ## 2    PRECIP 5.302078
 
-hmm.. remove BFQ from full model
+will proceed only with MWMT
 
-## check for multicollinearity (again)
+## check for multicollinearity - flow model
 
 ``` r
-df <- with(omy_df_reduced, data.frame(ST_S36_2015, FlowVel, CANOPY, IP_Steelhd))
+df <- with(omy_df_reduced, data.frame(FlowVel, SLOPE))
 usdm::vif(df) 
 ```
 
-    ##     Variables      VIF
-    ## 1 ST_S36_2015 1.182756
-    ## 2     FlowVel 2.620033
-    ## 3      CANOPY 2.534725
-    ## 4  IP_Steelhd 1.860629
+    ##   Variables      VIF
+    ## 1   FlowVel 1.540041
+    ## 2     SLOPE 1.540041
 
-## set up models
+will keep both
 
-``` r
-mod1 <- lmer(PC1 ~ OUT_DIST + (1|Sampling_Site), data = omy_df_reduced, REML = TRUE)
-mod2 <- lmer(PC1 ~ ST_S36_2015 + FlowVel+ CANOPY + IP_Steelhd + (1|Sampling_Site), data = omy_df_reduced, REML = TRUE)
-mod3 <- lmer(PC1 ~ ST_S36_2015 + (1|Sampling_Site), data = omy_df_reduced, REML = TRUE)
-mod4 <- lmer(PC1 ~ FlowVel + BFQ + (1|Sampling_Site), data = omy_df_reduced, REML = TRUE)
-mod5 <- lmer(PC1 ~ CANOPY + IP_Steelhd + (1|Sampling_Site), data = omy_df_reduced, REML = TRUE)
-```
-
-## check residuals of full model
+## check for multicollinearity - habitat model
 
 ``` r
-plot(mod2, abline = c(0,0))
+df <- with(omy_df_reduced, data.frame(CANOPY, IP_Steelhd, Logjams, Pool_freq, Spawnable))
+usdm::vif(df) 
 ```
 
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+    ##    Variables       VIF
+    ## 1     CANOPY  4.191717
+    ## 2 IP_Steelhd  2.141861
+    ## 3    Logjams 10.256301
+    ## 4  Pool_freq  7.084923
+    ## 5  Spawnable  1.346930
+
+drop Logjams
 
 ``` r
-par(mfrow=c(1,2))
-hist(residuals(mod2)) 
-qqnorm(residuals(mod2))
+df <- with(omy_df_reduced, data.frame(CANOPY, IP_Steelhd, Pool_freq, Spawnable))
+usdm::vif(df) 
 ```
 
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
+    ##    Variables      VIF
+    ## 1     CANOPY 2.213114
+    ## 2 IP_Steelhd 2.110795
+    ## 3  Pool_freq 1.155398
+    ## 4  Spawnable 1.143541
 
-looks okay.
+drop Logjams
+
+## check for multicollinearity - full
+
+``` r
+df <- with(omy_df_reduced, data.frame(MWMT, FlowVel, CANOPY, IP_Steelhd, Pool_freq, Spawnable))
+usdm::vif(df) 
+```
+
+    ##    Variables      VIF
+    ## 1       MWMT 3.456305
+    ## 2    FlowVel 8.794318
+    ## 3     CANOPY 2.715157
+    ## 4 IP_Steelhd 9.087993
+    ## 5  Pool_freq 2.357833
+    ## 6  Spawnable 1.298098
+
+drop IP_Steelhd
+
+``` r
+df <- with(omy_df_reduced, data.frame(MWMT, FlowVel, CANOPY, Pool_freq, Spawnable))
+usdm::vif(df) 
+```
+
+    ##   Variables      VIF
+    ## 1      MWMT 2.454570
+    ## 2   FlowVel 2.046027
+    ## 3    CANOPY 2.671420
+    ## 4 Pool_freq 2.178273
+    ## 5 Spawnable 1.137516
+
+good to go.
+
+create subsets for (1) jv all, (2) adult all, (3) adults known steelhead
+
+``` r
+omy_jv <- omy_df_reduced %>%
+  filter(Life_Stage == "Juvenile")
+
+omy_ad <- omy_df_reduced %>%
+  filter(Life_Stage == "Adult")
+  
+omy_ad_stlhd <- omy_ad %>%
+  filter(Life_History_Type == "Steelhead")
+```
+
+# juveniles
+
+## set up models - no random effects
+
+``` r
+mod1 <- lm(PC1 ~ OUT_DIST, data = omy_jv)
+mod2 <- lm(PC1 ~ MWMT, data = omy_jv)
+mod3 <- lm(PC1 ~ FlowVel + SLOPE, data = omy_jv)
+mod4 <- lm(PC1 ~ CANOPY + IP_Steelhd +Pool_freq + Spawnable, data = omy_jv)
+mod5 <- lm(PC1 ~ MWMT + FlowVel + CANOPY + Pool_freq + Spawnable, data = omy_jv)
+```
 
 ## compare models
 
@@ -460,44 +283,52 @@ stargazer(mod1, mod2, mod3, mod4, mod5,
 ```
 
     ## 
-    ## =====================================================================================================
-    ##                                                    Dependent variable:                               
-    ##                     ---------------------------------------------------------------------------------
-    ##                                                            PC1                                       
-    ##                           (1)             (2)              (3)              (4)             (5)      
-    ## -----------------------------------------------------------------------------------------------------
-    ## OUT_DIST               0.400***                                                                      
-    ##                     (0.290, 0.510)                                                                   
-    ##                                                                                                      
-    ## ST_S36_2015                            -0.365***        -0.366***                                    
-    ##                                     (-0.442, -0.288) (-0.476, -0.256)                                
-    ##                                                                                                      
-    ## FlowVel                                  -0.015                           -0.012                     
-    ##                                     (-0.105, 0.075)                   (-0.192, 0.168)                
-    ##                                                                                                      
-    ## CANOPY                                   -0.047                                            0.034     
-    ##                                     (-0.144, 0.050)                                   (-0.113, 0.182)
-    ##                                                                                                      
-    ## IP_Steelhd                              0.146***                                          0.195**    
-    ##                                      (0.085, 0.207)                                   (0.070, 0.320) 
-    ##                                                                                                      
-    ## BFQ                                                                       -0.021                     
-    ##                                                                       (-0.234, 0.192)                
-    ##                                                                                                      
-    ## Constant                -0.003           0.036            -0.032           0.053           0.157     
-    ##                     (-0.105, 0.098) (-0.039, 0.112)  (-0.142, 0.078)  (-0.163, 0.269) (-0.023, 0.336)
-    ##                                                                                                      
-    ## -----------------------------------------------------------------------------------------------------
-    ## Observations              841             841              841              841             841      
-    ## Log Likelihood         -539.657         -538.300         -540.502        -551.480        -547.571    
-    ## Akaike Inf. Crit.      1087.314         1090.600         1089.004        1112.959        1105.142    
-    ## Bayesian Inf. Crit.    1106.252         1123.742         1107.942        1136.632        1128.815    
-    ## =====================================================================================================
-    ## Note:                                                                   *p<0.05; **p<0.01; ***p<0.001
-
-**null model has lowest AIC/BIC**
+    ## =============================================================================================================================================
+    ##                                                                        Dependent variable:                                                   
+    ##                     -------------------------------------------------------------------------------------------------------------------------
+    ##                                                                                PC1                                                           
+    ##                               (1)                      (2)                      (3)                     (4)                     (5)          
+    ## ---------------------------------------------------------------------------------------------------------------------------------------------
+    ## OUT_DIST                   -0.517***                                                                                                         
+    ##                         (-0.605, -0.430)                                                                                                     
+    ##                                                                                                                                              
+    ## MWMT                                                 0.270***                                                                  0.253         
+    ##                                                   (0.218, 0.322)                                                          (-0.018, 0.524)    
+    ##                                                                                                                                              
+    ## FlowVel                                                                       -0.126                                          -0.365         
+    ##                                                                           (-0.355, 0.104)                                 (-0.830, 0.101)    
+    ##                                                                                                                                              
+    ## SLOPE                                                                         -0.201*                                                        
+    ##                                                                          (-0.358, -0.044)                                                    
+    ##                                                                                                                                              
+    ## CANOPY                                                                                               -0.341***                 0.049         
+    ##                                                                                                  (-0.473, -0.209)         (-0.337, 0.434)    
+    ##                                                                                                                                              
+    ## IP_Steelhd                                                                                             0.088                                 
+    ##                                                                                                   (-0.093, 0.269)                            
+    ##                                                                                                                                              
+    ## Pool_freq                                                                                              0.061                                 
+    ##                                                                                                   (-0.018, 0.140)                            
+    ##                                                                                                                                              
+    ## Spawnable                                                                                                                                    
+    ##                                                                                                                                              
+    ##                                                                                                                                              
+    ## Constant                     0.113                  -0.246***                -0.424***               -0.649***               -0.378***       
+    ##                         (-0.007, 0.233)          (-0.324, -0.169)        (-0.611, -0.236)        (-0.759, -0.539)        (-0.559, -0.196)    
+    ##                                                                                                                                              
+    ## ---------------------------------------------------------------------------------------------------------------------------------------------
+    ## Observations                  273                      273                      273                     273                     273          
+    ## R2                           0.332                    0.276                    0.254                   0.406                   0.406         
+    ## Adjusted R2                  0.330                    0.273                    0.248                   0.400                   0.400         
+    ## Residual Std. Error     0.463 (df = 271)         0.482 (df = 271)        0.490 (df = 270)        0.438 (df = 269)        0.438 (df = 269)    
+    ## F Statistic         134.957*** (df = 1; 271) 103.058*** (df = 1; 271) 45.916*** (df = 2; 270) 61.377*** (df = 3; 269) 61.377*** (df = 3; 269)
+    ## =============================================================================================================================================
+    ## Note:                                                                                                           *p<0.05; **p<0.01; ***p<0.001
 
 week 6 tutorial suggests using the ML fit, as AIC is not valid for REML…
+“The function extractAIC refits the models with ‘REML=FALSE’ to obtain
+AIC values that are comparable between models with different fixed
+effects or between models fitted with functions lm and lmer.”
 
 ``` r
 aic_vals <- c(extractAIC(mod1)[2], extractAIC(mod2)[2], extractAIC(mod3)[2], 
@@ -506,331 +337,212 @@ names(aic_vals) <- c("mod1","mod2","mod3", "mod4", "mod5")
 aic_vals
 ```
 
-    ##     mod1     mod2     mod3     mod4     mod5 
-    ## 1079.085 1065.695 1080.914 1104.256 1094.744
+    ##      mod1      mod2      mod3      mod4      mod5 
+    ## -418.9334 -396.5918 -386.5292 -446.9679 -446.9679
 
-**hmm here mod2 (full model) shows lowest AIC**
+**hmm here mod4 (habitat model) and mod5 (full model) shows lowest AIC**
 
-check model validity
-
-``` r
-plot(mod2, abline = c(0,0))
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+## check residuals of habitat model
 
 ``` r
-par(mfrow=c(1,2))
-hist(residuals(mod2)) 
-qqnorm(residuals(mod2))
+plot(mod4, abline = c(0,0))
 ```
 
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-18-2.png)<!-- -->
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
 
-## estimate variance components
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-19-2.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-19-3.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-19-4.png)<!-- -->
 
 ``` r
-MuMIn::r.squaredGLMM(mod2)
+#par(mfrow=c(1,2))
+#hist(residuals(mod4)) 
+#qqnorm(residuals(mod4))
 ```
 
-    ## Warning: 'r.squaredGLMM' now calculates a revised statistic. See the help page.
+looks okay.
 
-    ##           R2m       R2c
-    ## [1,] 0.454985 0.4854203
-
-the fixed effects had a pretty sizable effect (45%) and the total model
-explains 48%.
+## check residuals of full model
 
 ``` r
-summary(mod2)
+plot(mod5, abline = c(0,0))
 ```
 
-    ## Linear mixed model fit by REML ['lmerMod']
-    ## Formula: 
-    ## PC1 ~ ST_S36_2015 + FlowVel + CANOPY + IP_Steelhd + (1 | Sampling_Site)
-    ##    Data: omy_df_reduced
-    ## 
-    ## REML criterion at convergence: 1076.6
-    ## 
-    ## Scaled residuals: 
-    ##     Min      1Q  Median      3Q     Max 
-    ## -3.1881 -0.7124 -0.0066  0.6300  3.6720 
-    ## 
-    ## Random effects:
-    ##  Groups        Name        Variance Std.Dev.
-    ##  Sampling_Site (Intercept) 0.01193  0.1092  
-    ##  Residual                  0.20164  0.4490  
-    ## Number of obs: 841, groups:  Sampling_Site, 21
-    ## 
-    ## Fixed effects:
-    ##             Estimate Std. Error t value
-    ## (Intercept)  0.03636    0.03848   0.945
-    ## ST_S36_2015 -0.36475    0.03917  -9.312
-    ## FlowVel     -0.01460    0.04594  -0.318
-    ## CANOPY      -0.04717    0.04962  -0.951
-    ## IP_Steelhd   0.14623    0.03125   4.680
-    ## 
-    ## Correlation of Fixed Effects:
-    ##             (Intr) ST_S36 FlowVl CANOPY
-    ## ST_S36_2015  0.263                     
-    ## FlowVel      0.110  0.039              
-    ## CANOPY      -0.134  0.134 -0.719       
-    ## IP_Steelhd   0.311  0.204  0.114 -0.252
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
 
-## now subset data to include only sites with full environmental data (aka sites on mainstem of Elwha)
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-20-3.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-20-4.png)<!-- -->
 
 ``` r
-omy_n_ms <- omy_df %>%
-  drop_na()
+#par(mfrow=c(1,2))
+#hist(residuals(mod5)) 
+#qqnorm(residuals(mod5))
 ```
 
-## fit candidate models
+# adults
 
-1.  Null model: OUT_DIST (aka. Rkm)
-2.  Full model: ST_S36_2015, FlowVel, BFQ, Pool_freq, Logjams, CANOPY,
-    IP_Steelhd, spawnable_area_steelhd, percent_gravels, percent_fines
-3.  Temperature model: ST_S36_2015
-4.  Flow model: FlowVel, BFQ
-5.  Habitat type: Pool_freq, Logjams, CANOPY, IP_Steelhd
-6.  Substrate: spawnable_area_steelhd, percent_gravels, percent_fines
-
-## check for multicollinearity (again)
+## set up models - no random effects
 
 ``` r
-df <- with(omy_n_ms, data.frame(ST_S36_2015, FlowVel, BFQ, Pool_frequency, Logjams, CANOPY, IP_Steelhd, spawnable_area_steelhd, Percent_gravels, Percent_fines))
-usdm::vif(df)  ## hmm... not sure why this produces Inf
+mod1 <- lm(PC1 ~ OUT_DIST, data = omy_ad)
+mod2 <- lm(PC1 ~ MWMT, data = omy_ad)
+mod3 <- lm(PC1 ~ FlowVel + SLOPE, data = omy_ad)
+mod4 <- lm(PC1 ~ CANOPY + IP_Steelhd +Pool_freq + Spawnable, data = omy_ad)
+mod5 <- lm(PC1 ~ MWMT + FlowVel + CANOPY + Pool_freq + Spawnable, data = omy_ad)
 ```
 
-    ##                 Variables VIF
-    ## 1             ST_S36_2015 Inf
-    ## 2                 FlowVel Inf
-    ## 3                     BFQ Inf
-    ## 4          Pool_frequency Inf
-    ## 5                 Logjams Inf
-    ## 6                  CANOPY Inf
-    ## 7              IP_Steelhd Inf
-    ## 8  spawnable_area_steelhd Inf
-    ## 9         Percent_gravels Inf
-    ## 10          Percent_fines Inf
-
-``` r
-df <- with(omy_n_ms, data.frame(FlowVel, BFQ))
-usdm::vif(df)
-```
-
-    ##   Variables      VIF
-    ## 1   FlowVel 107.7216
-    ## 2       BFQ 107.7216
-
-``` r
-## remove BFQ
-
-df <- with(omy_n_ms, data.frame(Pool_frequency, Logjams, CANOPY, IP_Steelhd))
-usdm::vif(df)
-```
-
-    ##        Variables       VIF
-    ## 1 Pool_frequency 14.937768
-    ## 2        Logjams 11.279564
-    ## 3         CANOPY  6.101275
-    ## 4     IP_Steelhd  5.811464
-
-``` r
-## remove pool_frequency
-
-df <- with(omy_n_ms, data.frame(Logjams, CANOPY, IP_Steelhd))
-usdm::vif(df)
-```
-
-    ##    Variables      VIF
-    ## 1    Logjams 2.166504
-    ## 2     CANOPY 4.333278
-    ## 3 IP_Steelhd 4.458155
-
-``` r
-df <- with(omy_n_ms, data.frame(spawnable_area_steelhd, Percent_gravels, Percent_fines))
-usdm::vif(df)
-```
-
-    ##                Variables      VIF
-    ## 1 spawnable_area_steelhd 1.340629
-    ## 2        Percent_gravels 1.423580
-    ## 3          Percent_fines 1.290918
-
-``` r
-### going back to the full model... removing BFQ and pool_frequency
-df <- with(omy_n_ms, data.frame(ST_S36_2015, FlowVel, Logjams, CANOPY, IP_Steelhd, spawnable_area_steelhd, Percent_gravels, Percent_fines))
-usdm::vif(df) 
-```
-
-    ##                Variables       VIF
-    ## 1            ST_S36_2015 43.228549
-    ## 2                FlowVel  8.599820
-    ## 3                Logjams 24.106355
-    ## 4                 CANOPY 37.363997
-    ## 5             IP_Steelhd 39.106265
-    ## 6 spawnable_area_steelhd  5.335000
-    ## 7        Percent_gravels 11.793734
-    ## 8          Percent_fines  3.648653
-
-``` r
-# try dropping additional variables in the full model? for now just dropping full model from comparison.  
-```
-
-``` r
-mod1 <- lmer(PC1 ~ OUT_DIST + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
-#mod2 <- lmer(PC1 ~ ST_S36_2015+ FlowVel+ Logjams+ CANOPY+ IP_Steelhd+ spawnable_area_steelhd + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
-mod3 <- lmer(PC1 ~ ST_S36_2015 + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
-mod4 <- lmer(PC1 ~ FlowVel + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
-mod5 <- lmer(PC1 ~ Logjams + CANOPY + IP_Steelhd + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
-```
-
-    ## boundary (singular) fit: see help('isSingular')
-
-``` r
-mod6 <- lmer(PC1 ~ spawnable_area_steelhd + Percent_gravels + Percent_fines + (1|Sampling_Site), data = omy_n_ms, REML = TRUE)
-```
-
-``` r
-aic_vals <- c(extractAIC(mod1)[2], extractAIC(mod3)[2], 
-              extractAIC(mod4)[2], extractAIC(mod5)[2], extractAIC(mod6)[2])
-names(aic_vals) <- c("mod1","mod3", "mod4", "mod5", "mod6")
-aic_vals
-```
-
-    ##     mod1     mod3     mod4     mod5     mod6 
-    ## 577.4111 578.9816 586.4291 580.7956 586.2074
-
-**null model is lowest**
-
-``` r
-plot(mod6, abline = c(0,0))
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
-
-``` r
-par(mfrow=c(1,2))
-hist(residuals(mod6)) 
-qqnorm(residuals(mod6))
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-25-2.png)<!-- -->
-
-``` r
-stargazer(mod1, mod3, mod4, mod5, mod6, 
-          type = "text",
-          digits = 3, 
-          ci = TRUE,
-          star.cutoffs = c(0.05, 0.01, 0.001),
-          digit.separator = "")
-```
-
-    ## 
-    ## ==========================================================================================================
-    ##                                                        Dependent variable:                                
-    ##                        -----------------------------------------------------------------------------------
-    ##                                                                PC1                                        
-    ##                              (1)             (2)              (3)              (4)              (5)       
-    ## ----------------------------------------------------------------------------------------------------------
-    ## OUT_DIST                  0.382***                                                                        
-    ##                        (0.157, 0.606)                                                                     
-    ##                                                                                                           
-    ## ST_S36_2015                                -0.362**                                                       
-    ##                                        (-0.600, -0.125)                                                   
-    ##                                                                                                           
-    ## FlowVel                                                      0.058                                        
-    ##                                                         (-0.077, 0.192)                                   
-    ##                                                                                                           
-    ## Logjams                                                                       -0.098                      
-    ##                                                                          (-0.206, 0.011)                  
-    ##                                                                                                           
-    ## CANOPY                                                                        0.057                       
-    ##                                                                          (-0.190, 0.303)                  
-    ##                                                                                                           
-    ## IP_Steelhd                                                                    -0.074                      
-    ##                                                                          (-0.219, 0.071)                  
-    ##                                                                                                           
-    ## spawnable_area_steelhd                                                                         -0.022     
-    ##                                                                                           (-0.070, 0.025) 
-    ##                                                                                                           
-    ## Percent_gravels                                                                                -0.082     
-    ##                                                                                           (-0.170, 0.005) 
-    ##                                                                                                           
-    ## Percent_fines                                                                                  -0.012     
-    ##                                                                                           (-0.080, 0.057) 
-    ##                                                                                                           
-    ## Constant                   -0.038           -0.052         -0.276***        -0.334***        -0.331***    
-    ##                        (-0.230, 0.154) (-0.249, 0.146)  (-0.398, -0.154) (-0.475, -0.193) (-0.451, -0.211)
-    ##                                                                                                           
-    ## ----------------------------------------------------------------------------------------------------------
-    ## Observations                 429             429              429              429              429       
-    ## Log Likelihood            -288.664         -289.260         -292.996         -293.178         -297.109    
-    ## Akaike Inf. Crit.          585.329         586.520          593.991          598.357          606.218     
-    ## Bayesian Inf. Crit.        601.574         602.766          610.237          622.726          630.586     
-    ## ==========================================================================================================
-    ## Note:                                                                        *p<0.05; **p<0.01; ***p<0.001
-
-**again, null model has lowest AIC/BIC**
-
-## now using the adaptive response variable… this is a proportion so go with “family = binomial” in glmer (???) or quasibinomial?
-
-## first use omy_df_reduced dataframe
-
-``` r
-mod1 <- glmer(alleleS_count1  ~ OUT_DIST + (1|Sampling_Site), family = "binomial", data = omy_df_reduced)
-```
-
-    ## Warning in eval(family$initialize, rho): non-integer #successes in a binomial
-    ## glm!
-
-``` r
-mod2 <- glmer(alleleS_count1  ~ ST_S36_2015 + FlowVel+ CANOPY + IP_Steelhd + (1|Sampling_Site), family = "binomial", data = omy_df_reduced)
-```
-
-    ## Warning in eval(family$initialize, rho): non-integer #successes in a binomial
-    ## glm!
-
-    ## boundary (singular) fit: see help('isSingular')
-
-``` r
-mod3 <- glmer(alleleS_count1  ~ ST_S36_2015 + (1|Sampling_Site), family = "binomial", data = omy_df_reduced)
-```
-
-    ## Warning in eval(family$initialize, rho): non-integer #successes in a binomial
-    ## glm!
-
-    ## boundary (singular) fit: see help('isSingular')
-
-``` r
-mod4 <- glmer(alleleS_count1  ~ FlowVel + BFQ + (1|Sampling_Site), family = "binomial", data = omy_df_reduced)
-```
-
-    ## Warning in eval(family$initialize, rho): non-integer #successes in a binomial
-    ## glm!
-
-``` r
-mod5 <- glmer(alleleS_count1  ~ CANOPY + IP_Steelhd + (1|Sampling_Site), family = "binomial", data = omy_df_reduced)
-```
-
-    ## Warning in eval(family$initialize, rho): non-integer #successes in a binomial
-    ## glm!
-
-``` r
-plot(mod2, abline = c(0,0))
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
-
-``` r
-par(mfrow=c(1,2))
-hist(residuals(mod2)) 
-qqnorm(residuals(mod2))
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-28-2.png)<!-- -->
-
-well that’s no good… but anyways.. let’s glance at model AIC’s
+## compare models
 
 ``` r
 stargazer(mod1, mod2, mod3, mod4, mod5, 
@@ -842,110 +554,169 @@ stargazer(mod1, mod2, mod3, mod4, mod5,
 ```
 
     ## 
-    ## ========================================================================================================
-    ##                                                     Dependent variable:                                 
-    ##                     ------------------------------------------------------------------------------------
-    ##                                                        alleleS_count1                                   
-    ##                           (1)              (2)              (3)              (4)              (5)       
-    ## --------------------------------------------------------------------------------------------------------
-    ## OUT_DIST                1.533***                                                                        
-    ##                      (1.157, 1.909)                                                                     
-    ##                                                                                                         
-    ## ST_S36_2015                             -1.448***        -1.613***                                      
-    ##                                      (-1.697, -1.199) (-1.836, -1.390)                                  
-    ##                                                                                                         
-    ## FlowVel                                  -0.386**                           0.106                       
-    ##                                      (-0.672, -0.100)                  (-0.584, 0.795)                  
-    ##                                                                                                         
-    ## CANOPY                                    0.390*                                             0.287      
-    ##                                       (0.091, 0.689)                                    (-0.326, 0.900) 
-    ##                                                                                                         
-    ## IP_Steelhd                                0.139                                              0.532      
-    ##                                      (-0.096, 0.375)                                    (-0.034, 1.097) 
-    ##                                                                                                         
-    ## BFQ                                                                         -0.394                      
-    ##                                                                        (-1.176, 0.387)                  
-    ##                                                                                                         
-    ## Constant               -1.379***        -1.626***        -1.695***         -1.049**         -0.748*     
-    ##                     (-1.795, -0.962) (-1.863, -1.388) (-1.939, -1.452) (-1.797, -0.300) (-1.475, -0.022)
-    ##                                                                                                         
-    ## --------------------------------------------------------------------------------------------------------
-    ## Observations              837              837              837              837              837       
-    ## Log Likelihood          -319.640         -309.860         -314.619         -332.373         -330.263    
-    ## Akaike Inf. Crit.       645.280          631.720          635.238          672.747          668.526     
-    ## Bayesian Inf. Crit.     659.469          660.099          649.427          691.666          687.446     
-    ## ========================================================================================================
-    ## Note:                                                                      *p<0.05; **p<0.01; ***p<0.001
-
-hmm… well null, full, and temp models have lowest AIC/BICs. need to look
-into model fit further.
-
-## second let’s use the omy_n\_ms dataframe
+    ## ===========================================================================================================================================
+    ##                                                                       Dependent variable:                                                  
+    ##                     -----------------------------------------------------------------------------------------------------------------------
+    ##                                                                               PC1                                                          
+    ##                               (1)                     (2)                     (3)                     (4)                     (5)          
+    ## -------------------------------------------------------------------------------------------------------------------------------------------
+    ## OUT_DIST                   -0.398***                                                                                                       
+    ##                        (-0.508, -0.288)                                                                                                    
+    ##                                                                                                                                            
+    ## MWMT                                               0.355***                                                                 0.309**        
+    ##                                                 (0.220, 0.490)                                                          (0.083, 0.534)     
+    ##                                                                                                                                            
+    ## FlowVel                                                                    0.175***                                         0.054*         
+    ##                                                                         (0.100, 0.250)                                  (0.002, 0.106)     
+    ##                                                                                                                                            
+    ## SLOPE                                                                       -0.099                                                         
+    ##                                                                         (-0.201, 0.003)                                                    
+    ##                                                                                                                                            
+    ## CANOPY                                                                                              0.108**                 0.111**        
+    ##                                                                                                 (0.041, 0.176)          (0.042, 0.181)     
+    ##                                                                                                                                            
+    ## IP_Steelhd                                                                                           0.022                                 
+    ##                                                                                                 (-0.033, 0.077)                            
+    ##                                                                                                                                            
+    ## Pool_freq                                                                                          -0.178***                -0.047         
+    ##                                                                                                (-0.248, -0.108)         (-0.165, 0.070)    
+    ##                                                                                                                                            
+    ## Spawnable                                                                                            0.031                   0.018         
+    ##                                                                                                 (-0.008, 0.069)         (-0.021, 0.057)    
+    ##                                                                                                                                            
+    ## Constant                     0.016                   0.082                 0.202***                0.170***                  0.065         
+    ##                         (-0.065, 0.097)        (-0.0003, 0.164)         (0.139, 0.266)          (0.112, 0.227)          (-0.024, 0.154)    
+    ##                                                                                                                                            
+    ## -------------------------------------------------------------------------------------------------------------------------------------------
+    ## Observations                  528                     528                     528                     528                     528          
+    ## R2                           0.087                   0.048                   0.063                   0.120                   0.134         
+    ## Adjusted R2                  0.085                   0.046                   0.060                   0.113                   0.125         
+    ## Residual Std. Error    0.496 (df = 526)        0.506 (df = 526)        0.503 (df = 525)        0.488 (df = 523)        0.485 (df = 522)    
+    ## F Statistic         50.195*** (df = 1; 526) 26.613*** (df = 1; 526) 17.670*** (df = 2; 525) 17.761*** (df = 4; 523) 16.121*** (df = 5; 522)
+    ## ===========================================================================================================================================
+    ## Note:                                                                                                         *p<0.05; **p<0.01; ***p<0.001
 
 ``` r
-mod1 <- glmer(alleleS_count1 ~ OUT_DIST + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
+aic_vals <- c(extractAIC(mod1)[2], extractAIC(mod2)[2], extractAIC(mod3)[2], 
+              extractAIC(mod4)[2], extractAIC(mod5)[2])
+names(aic_vals) <- c("mod1","mod2","mod3", "mod4", "mod5")
+aic_vals
 ```
 
-    ## Warning in eval(family$initialize, rho): non-integer #successes in a binomial
-    ## glm!
+    ##      mod1      mod2      mod3      mod4      mod5 
+    ## -738.8682 -716.8039 -723.1407 -751.9965 -758.5630
 
-    ## boundary (singular) fit: see help('isSingular')
+\*\* full model (mod5) has lowest AIC \*\*
+
+## check residuals of full model
 
 ``` r
-#mod2 <- lmer(alleleS_count1 ~ ST_S36_2015+ FlowVel+ Logjams+ CANOPY+ IP_Steelhd+ spawnable_area_steelhd + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
-mod3 <- glmer(alleleS_count1 ~ ST_S36_2015 + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
+plot(mod5, abline = c(0,0))
 ```
 
-    ## Warning in eval(family$initialize, rho): non-integer #successes in a binomial
-    ## glm!
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
 
-    ## boundary (singular) fit: see help('isSingular')
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-24-2.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-24-3.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-24-4.png)<!-- -->
 
 ``` r
-mod4 <- glmer(alleleS_count1 ~ FlowVel + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
+#par(mfrow=c(1,2))
+#hist(residuals(mod5)) 
+#qqnorm(residuals(mod5))
 ```
 
-    ## Warning in eval(family$initialize, rho): non-integer #successes in a binomial
-    ## glm!
+# adult steelhead
 
-    ## boundary (singular) fit: see help('isSingular')
+## set up models - no random effects
 
 ``` r
-mod5 <- glmer(alleleS_count1 ~ Logjams + CANOPY + IP_Steelhd + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
+mod1 <- lm(PC1 ~ OUT_DIST, data = omy_ad_stlhd)
+mod2 <- lm(PC1 ~ MWMT, data = omy_ad_stlhd)
+mod3 <- lm(PC1 ~ FlowVel + SLOPE, data = omy_ad_stlhd)
+mod4 <- lm(PC1 ~ CANOPY + IP_Steelhd +Pool_freq + Spawnable, data = omy_ad_stlhd)
+mod5 <- lm(PC1 ~ MWMT + FlowVel + CANOPY + Pool_freq + Spawnable, data = omy_ad_stlhd)
 ```
 
-    ## Warning in eval(family$initialize, rho): non-integer #successes in a binomial
-    ## glm!
-
-    ## boundary (singular) fit: see help('isSingular')
+## compare models
 
 ``` r
-mod6 <- glmer(alleleS_count1 ~ spawnable_area_steelhd + Percent_gravels + Percent_fines + (1|Sampling_Site), family = "binomial", data = omy_n_ms)
-```
-
-    ## Warning in eval(family$initialize, rho): non-integer #successes in a binomial
-    ## glm!
-
-    ## boundary (singular) fit: see help('isSingular')
-
-``` r
-plot(mod6, abline = c(0,0))
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
-
-``` r
-par(mfrow=c(1,2))
-hist(residuals(mod6)) 
-qqnorm(residuals(mod6))
-```
-
-![](elwha_IBE_files/figure-gfm/unnamed-chunk-31-2.png)<!-- -->
-
-no bueno.
-
-``` r
-stargazer(mod1, mod3, mod4, mod5, mod6, 
+stargazer(mod1, mod2, mod3, mod4, mod5, 
           type = "text",
           digits = 3, 
           ci = TRUE,
@@ -954,48 +725,977 @@ stargazer(mod1, mod3, mod4, mod5, mod6,
 ```
 
     ## 
-    ## ==========================================================================================================
-    ##                                                        Dependent variable:                                
-    ##                        -----------------------------------------------------------------------------------
-    ##                                                          alleleS_count1                                   
-    ##                              (1)             (2)              (3)              (4)              (5)       
-    ## ----------------------------------------------------------------------------------------------------------
-    ## OUT_DIST                  2.729***                                                                        
-    ##                        (1.553, 3.905)                                                                     
-    ##                                                                                                           
-    ## ST_S36_2015                               -2.705***                                                       
-    ##                                        (-3.915, -1.495)                                                   
-    ##                                                                                                           
-    ## FlowVel                                                      -0.134                                       
-    ##                                                         (-0.693, 0.426)                                   
-    ##                                                                                                           
-    ## Logjams                                                                      -0.647*                      
-    ##                                                                          (-1.284, -0.010)                 
-    ##                                                                                                           
-    ## CANOPY                                                                        0.729                       
-    ##                                                                          (-0.752, 2.210)                  
-    ##                                                                                                           
-    ## IP_Steelhd                                                                    -0.639                      
-    ##                                                                          (-1.677, 0.399)                  
-    ##                                                                                                           
-    ## spawnable_area_steelhd                                                                         -0.039     
-    ##                                                                                           (-0.246, 0.168) 
-    ##                                                                                                           
-    ## Percent_gravels                                                                               -0.641**    
-    ##                                                                                           (-1.078, -0.204)
-    ##                                                                                                           
-    ## Percent_fines                                                                                  -0.086     
-    ##                                                                                           (-0.392, 0.220) 
-    ##                                                                                                           
-    ## Constant                   -0.602           -0.637         -2.728***        -2.810***        -2.931***    
-    ##                        (-1.517, 0.313) (-1.573, 0.299)  (-3.126, -2.329) (-3.743, -1.877) (-3.389, -2.472)
-    ##                                                                                                           
-    ## ----------------------------------------------------------------------------------------------------------
-    ## Observations                 429             429              429              429              429       
-    ## Log Likelihood             -89.497         -90.122          -97.974          -88.671          -91.634     
-    ## Akaike Inf. Crit.          184.993         186.244          201.949          187.342          193.269     
-    ## Bayesian Inf. Crit.        197.178         198.429          214.133          207.649          213.576     
-    ## ==========================================================================================================
-    ## Note:                                                                        *p<0.05; **p<0.01; ***p<0.001
+    ## ===========================================================================================================================================
+    ##                                                                       Dependent variable:                                                  
+    ##                     -----------------------------------------------------------------------------------------------------------------------
+    ##                                                                               PC1                                                          
+    ##                               (1)                     (2)                     (3)                     (4)                     (5)          
+    ## -------------------------------------------------------------------------------------------------------------------------------------------
+    ## OUT_DIST                   -0.390***                                                                                                       
+    ##                        (-0.508, -0.272)                                                                                                    
+    ##                                                                                                                                            
+    ## MWMT                                               0.378***                                                                 0.362**        
+    ##                                                 (0.232, 0.525)                                                          (0.115, 0.610)     
+    ##                                                                                                                                            
+    ## FlowVel                                                                    0.163***                                         0.060*         
+    ##                                                                         (0.084, 0.242)                                  (0.007, 0.113)     
+    ##                                                                                                                                            
+    ## SLOPE                                                                       -0.079                                                         
+    ##                                                                         (-0.188, 0.031)                                                    
+    ##                                                                                                                                            
+    ## CANOPY                                                                                              0.096**                 0.111**        
+    ##                                                                                                 (0.024, 0.169)          (0.037, 0.186)     
+    ##                                                                                                                                            
+    ## IP_Steelhd                                                                                           0.034                                 
+    ##                                                                                                 (-0.023, 0.090)                            
+    ##                                                                                                                                            
+    ## Pool_freq                                                                                          -0.193***                -0.040         
+    ##                                                                                                (-0.270, -0.117)         (-0.169, 0.089)    
+    ##                                                                                                                                            
+    ## Spawnable                                                                                            0.048                   0.032         
+    ##                                                                                                (-0.00001, 0.096)        (-0.016, 0.080)    
+    ##                                                                                                                                            
+    ## Constant                     0.022                   0.074                 0.218***                0.168***                  0.043         
+    ##                         (-0.066, 0.111)         (-0.016, 0.164)         (0.149, 0.286)          (0.106, 0.229)          (-0.054, 0.140)    
+    ##                                                                                                                                            
+    ## -------------------------------------------------------------------------------------------------------------------------------------------
+    ## Observations                  495                     495                     495                     495                     495          
+    ## R2                           0.079                   0.049                   0.063                   0.125                   0.142         
+    ## Adjusted R2                  0.077                   0.047                   0.059                   0.118                   0.133         
+    ## Residual Std. Error    0.496 (df = 493)        0.503 (df = 493)        0.500 (df = 492)        0.484 (df = 490)        0.480 (df = 489)    
+    ## F Statistic         42.183*** (df = 1; 493) 25.584*** (df = 1; 493) 16.485*** (df = 2; 492) 17.550*** (df = 4; 490) 16.128*** (df = 5; 489)
+    ## ===========================================================================================================================================
+    ## Note:                                                                                                         *p<0.05; **p<0.01; ***p<0.001
 
-**here the null model seems to be best**
+``` r
+aic_vals <- c(extractAIC(mod1)[2], extractAIC(mod2)[2], extractAIC(mod3)[2], 
+              extractAIC(mod4)[2], extractAIC(mod5)[2])
+names(aic_vals) <- c("mod1","mod2","mod3", "mod4", "mod5")
+aic_vals
+```
+
+    ##      mod1      mod2      mod3      mod4      mod5 
+    ## -693.0982 -677.5022 -682.5658 -712.7343 -720.0171
+
+\*\* full model (mod5) has lowest AIC \*\*
+
+## check residuals of full model
+
+``` r
+plot(mod5, abline = c(0,0))
+```
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-28-2.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-28-3.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-28-4.png)<!-- -->
+
+``` r
+#par(mfrow=c(1,2))
+#hist(residuals(mod5)) 
+#qqnorm(residuals(mod5))
+```
+
+## now using the adaptive response variable… this is a proportion so go with “family = binomial” in glmer
+
+``` r
+library(bbmle) # for AICtab
+```
+
+    ## Loading required package: stats4
+
+    ## 
+    ## Attaching package: 'bbmle'
+
+    ## The following object is masked from 'package:dplyr':
+    ## 
+    ##     slice
+
+# juvenile
+
+GLMs
+
+``` r
+mod1_glm <- glm(alleleS_count1  ~ OUT_DIST, family = "binomial", data = omy_jv)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod2_glm <- glm(alleleS_count1  ~ MWMT, family = "binomial", data = omy_jv)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod3_glm <- glm(alleleS_count1  ~ FlowVel + SLOPE, family = "binomial", data = omy_jv)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod4_glm <- glm(alleleS_count1  ~ CANOPY + IP_Steelhd +Pool_freq + Spawnable, family = "binomial", data = omy_jv)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod5_glm <- glm(alleleS_count1  ~ MWMT + FlowVel + CANOPY + Pool_freq + Spawnable, family = "binomial", data = omy_jv)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+AICtab(mod1_glm, mod2_glm, mod3_glm, mod4_glm, mod5_glm)
+```
+
+    ##          dAIC df
+    ## mod4_glm  0.0 4 
+    ## mod5_glm  0.0 4 
+    ## mod1_glm  6.0 2 
+    ## mod2_glm 14.6 2 
+    ## mod3_glm 62.1 3
+
+mod4 (habitat) and mod5 (full) have lowest AIC
+
+``` r
+stargazer(mod1_glm, mod2_glm, mod3_glm, mod4_glm, mod5_glm, 
+          type = "text",
+          digits = 3, 
+          ci = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          digit.separator = "")
+```
+
+    ## 
+    ## ====================================================================================================
+    ##                                                  Dependent variable:                                
+    ##                   ----------------------------------------------------------------------------------
+    ##                                                     alleleS_count1                                  
+    ##                         (1)              (2)              (3)             (4)              (5)      
+    ## ----------------------------------------------------------------------------------------------------
+    ## OUT_DIST              1.487***                                                                      
+    ##                    (1.051, 1.923)                                                                   
+    ##                                                                                                     
+    ## MWMT                                  -0.819***                                          -0.343     
+    ##                                    (-1.063, -0.576)                                  (-1.777, 1.092)
+    ##                                                                                                     
+    ## FlowVel                                                 -0.454                           -0.138     
+    ##                                                     (-1.440, 0.532)                  (-2.655, 2.379)
+    ##                                                                                                     
+    ## SLOPE                                                   0.947**                                     
+    ##                                                     (0.265, 1.628)                                  
+    ##                                                                                                     
+    ## CANOPY                                                                  1.456***          0.589     
+    ##                                                                      (0.789, 2.123)  (-1.472, 2.650)
+    ##                                                                                                     
+    ## IP_Steelhd                                                              -1.012*                     
+    ##                                                                     (-1.910, -0.115)                
+    ##                                                                                                     
+    ## Pool_freq                                                                0.034                      
+    ##                                                                     (-0.395, 0.464)                 
+    ##                                                                                                     
+    ## Spawnable                                                                                           
+    ##                                                                                                     
+    ##                                                                                                     
+    ## Constant             -1.320***         -0.340*          -0.346          0.926**           0.132     
+    ##                   (-1.881, -0.760) (-0.679, -0.001) (-1.157, 0.465)  (0.337, 1.514)  (-0.771, 1.035)
+    ##                                                                                                     
+    ## ----------------------------------------------------------------------------------------------------
+    ## Observations            269              269              269             269              269      
+    ## Log Likelihood        -120.004         -124.308        -147.075         -115.005        -115.005    
+    ## Akaike Inf. Crit.     244.009          252.616          300.151         238.010          238.010    
+    ## ====================================================================================================
+    ## Note:                                                                  *p<0.05; **p<0.01; ***p<0.001
+
+model checking and diagnostics
+
+## check residuals of model
+
+``` r
+plot(mod4_glm, abline = c(0,0))
+```
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-33-2.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-33-3.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-33-4.png)<!-- -->
+
+``` r
+plot(mod5_glm, abline = c(0,0))
+```
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-33-5.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-33-6.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-33-7.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-33-8.png)<!-- -->
+
+# adults
+
+GLMs
+
+``` r
+mod1_glm <- glm(alleleS_count1  ~ OUT_DIST, family = "binomial", data = omy_ad)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod2_glm <- glm(alleleS_count1  ~ MWMT, family = "binomial", data = omy_ad)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod3_glm <- glm(alleleS_count1  ~ FlowVel + SLOPE, family = "binomial", data = omy_ad)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod4_glm <- glm(alleleS_count1  ~ CANOPY + IP_Steelhd +Pool_freq + Spawnable, family = "binomial", data = omy_ad)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod5_glm <- glm(alleleS_count1  ~ MWMT + FlowVel + CANOPY + Pool_freq + Spawnable, family = "binomial", data = omy_ad)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+AICtab(mod1_glm, mod2_glm, mod3_glm, mod4_glm, mod5_glm)
+```
+
+    ##          dAIC df
+    ## mod1_glm  0.0 2 
+    ## mod4_glm  0.3 5 
+    ## mod5_glm  0.8 6 
+    ## mod3_glm 13.7 3 
+    ## mod2_glm 18.0 2
+
+mod1 (rKM), mod4 (habitat) and mod5 (full) have lowest AIC
+
+``` r
+stargazer(mod1_glm, mod2_glm, mod3_glm, mod4_glm, mod5_glm, 
+          type = "text",
+          digits = 3, 
+          ci = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          digit.separator = "")
+```
+
+    ## 
+    ## ======================================================================================================
+    ##                                                   Dependent variable:                                 
+    ##                   ------------------------------------------------------------------------------------
+    ##                                                      alleleS_count1                                   
+    ##                         (1)              (2)              (3)              (4)              (5)       
+    ## ------------------------------------------------------------------------------------------------------
+    ## OUT_DIST              1.558***                                                                        
+    ##                    (0.851, 2.266)                                                                     
+    ##                                                                                                       
+    ## MWMT                                   -1.419**                                            -0.625     
+    ##                                    (-2.353, -0.486)                                   (-2.298, 1.048) 
+    ##                                                                                                       
+    ## FlowVel                                                 -0.653*                            -0.153     
+    ##                                                     (-1.184, -0.123)                  (-0.550, 0.244) 
+    ##                                                                                                       
+    ## SLOPE                                                    0.427                                        
+    ##                                                     (-0.247, 1.101)                                   
+    ##                                                                                                       
+    ## CANOPY                                                                    -0.310           -0.289     
+    ##                                                                      (-0.795, 0.175)  (-0.830, 0.252) 
+    ##                                                                                                       
+    ## IP_Steelhd                                                                -0.023                      
+    ##                                                                      (-0.436, 0.389)                  
+    ##                                                                                                       
+    ## Pool_freq                                                                0.849***          0.610      
+    ##                                                                       (0.404, 1.294)  (-0.134, 1.354) 
+    ##                                                                                                       
+    ## Spawnable                                                                 -0.086           -0.069     
+    ##                                                                      (-0.357, 0.185)  (-0.350, 0.212) 
+    ##                                                                                                       
+    ## Constant              -0.550*          -0.758**        -1.235***        -1.092***         -0.859*     
+    ##                   (-1.047, -0.052) (-1.309, -0.208) (-1.680, -0.789) (-1.477, -0.708) (-1.551, -0.167)
+    ##                                                                                                       
+    ## ------------------------------------------------------------------------------------------------------
+    ## Observations            291              291              291              291              291       
+    ## Log Likelihood        -97.776          -106.772         -103.624         -94.940          -94.170     
+    ## Akaike Inf. Crit.     199.553          217.544          213.248          199.881          200.340     
+    ## ======================================================================================================
+    ## Note:                                                                    *p<0.05; **p<0.01; ***p<0.001
+
+model checking and diagnostics
+
+## check residuals of model
+
+``` r
+plot(mod1_glm, abline = c(0,0))
+```
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-2.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-3.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-4.png)<!-- -->
+
+``` r
+plot(mod4_glm, abline = c(0,0))
+```
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-5.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-6.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-7.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-8.png)<!-- -->
+
+``` r
+plot(mod5_glm, abline = c(0,0))
+```
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-9.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-10.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-11.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-37-12.png)<!-- -->
+
+# steelhead
+
+GLMs
+
+``` r
+mod1_glm <- glm(alleleS_count1  ~ OUT_DIST, family = "binomial", data = omy_ad_stlhd)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod2_glm <- glm(alleleS_count1  ~ MWMT, family = "binomial", data = omy_ad_stlhd)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod3_glm <- glm(alleleS_count1  ~ FlowVel + SLOPE, family = "binomial", data = omy_ad_stlhd)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod4_glm <- glm(alleleS_count1  ~ CANOPY + IP_Steelhd +Pool_freq + Spawnable, family = "binomial", data = omy_ad_stlhd)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+mod5_glm <- glm(alleleS_count1  ~ MWMT + FlowVel + CANOPY + Pool_freq + Spawnable, family = "binomial", data = omy_ad_stlhd)
+```
+
+    ## Warning in eval(family$initialize): non-integer #successes in a binomial glm!
+
+``` r
+AICtab(mod1_glm, mod2_glm, mod3_glm, mod4_glm, mod5_glm)
+```
+
+    ##          dAIC df
+    ## mod1_glm  0.0 2 
+    ## mod5_glm  3.2 6 
+    ## mod4_glm  3.4 5 
+    ## mod3_glm 15.3 3 
+    ## mod2_glm 19.1 2
+
+mod1 (rKM) has lowest AIC
+
+``` r
+stargazer(mod1_glm, mod2_glm, mod3_glm, mod4_glm, mod5_glm, 
+          type = "text",
+          digits = 3, 
+          ci = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          digit.separator = "")
+```
+
+    ## 
+    ## ====================================================================================================
+    ##                                                  Dependent variable:                                
+    ##                   ----------------------------------------------------------------------------------
+    ##                                                     alleleS_count1                                  
+    ##                         (1)             (2)              (3)              (4)              (5)      
+    ## ----------------------------------------------------------------------------------------------------
+    ## OUT_DIST             1.700***                                                                       
+    ##                   (0.953, 2.446)                                                                    
+    ##                                                                                                     
+    ## MWMT                                  -1.608**                                           -0.945     
+    ##                                   (-2.590, -0.625)                                   (-2.775, 0.886)
+    ##                                                                                                     
+    ## FlowVel                                                -0.747**                          -0.169     
+    ##                                                    (-1.296, -0.198)                  (-0.576, 0.237)
+    ##                                                                                                     
+    ## SLOPE                                                   0.582                                       
+    ##                                                    (-0.125, 1.289)                                  
+    ##                                                                                                     
+    ## CANOPY                                                                   -0.297          -0.318     
+    ##                                                                     (-0.809, 0.214)  (-0.899, 0.263)
+    ##                                                                                                     
+    ## IP_Steelhd                                                               -0.036                     
+    ##                                                                     (-0.460, 0.388)                 
+    ##                                                                                                     
+    ## Pool_freq                                                               0.881***          0.523     
+    ##                                                                      (0.413, 1.350)  (-0.295, 1.340)
+    ##                                                                                                     
+    ## Spawnable                                                                -0.048          -0.018     
+    ##                                                                     (-0.330, 0.234)  (-0.310, 0.275)
+    ##                                                                                                     
+    ## Constant              -0.461          -0.673*         -1.177***        -1.081***         -0.733     
+    ##                   (-0.995, 0.073) (-1.258, -0.088) (-1.643, -0.711) (-1.484, -0.678) (-1.479, 0.014)
+    ##                                                                                                     
+    ## ----------------------------------------------------------------------------------------------------
+    ## Observations            281             281              281              281              281      
+    ## Log Likelihood        -89.586         -99.161          -96.216          -88.302          -87.167    
+    ## Akaike Inf. Crit.     183.173         202.322          198.431          186.604          186.335    
+    ## ====================================================================================================
+    ## Note:                                                                  *p<0.05; **p<0.01; ***p<0.001
+
+model checking and diagnostics
+
+## check residuals of model
+
+``` r
+plot(mod1_glm, abline = c(0,0))
+```
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-41-2.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-41-3.png)<!-- -->
+
+    ## Warning in plot.window(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "abline" is not a graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in axis(side = side, at = at, labels = labels, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in box(...): "abline" is not a graphical parameter
+
+    ## Warning in title(...): "abline" is not a graphical parameter
+
+    ## Warning in plot.xy(xy.coords(x, y), type = type, ...): "abline" is not a
+    ## graphical parameter
+
+    ## Warning in title(sub = sub.caption, ...): "abline" is not a graphical parameter
+
+![](elwha_IBE_files/figure-gfm/unnamed-chunk-41-4.png)<!-- -->

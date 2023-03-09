@@ -1,0 +1,484 @@
+---
+title: "elwha_enviro_final"
+author: "Kimberly Ledger"
+date: "2022-11-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load libraries
+```{r}
+library(tidyverse)
+library(caret)
+library(psych)
+library(corrplot)
+library(cowplot)
+```
+
+
+## first bring in the enviromental data manually extracted using ArcMap (UPDATED: QGIS used Feb2022)
+```{r}
+env <- read.csv('~/Desktop/LG_Proj4/Elwha_datafiles/2023/envirodataextraction_Feb2023_final_transposed.csv', row.names = NULL)
+```
+
+## add in the temperature data from Aimee
+```{r}
+streamtemp <- read.csv('~/Desktop/LG_Proj4/Elwha_datafiles/2023/StreamTempMetrics_myCOMID.csv') %>%
+  dplyr::filter(Year >= 2000) %>%
+  dplyr::select(!X) 
+
+temp_summary <- streamtemp  %>%
+  dplyr::group_by(COMID) %>%
+  summarize(mWmT_mean = mean(mWmT),
+            AWAT_mean = mean(AWAT),
+            MWAT_mean = mean(MWAT),
+            MWMT_mean = mean(MWMT),
+            DaysAbove_mean = mean(DaysAbove),
+            MeanAug_mean = mean(MeanAug))
+```
+
+postdam temp
+```{r}
+streamtemp_post <- read.csv('~/Desktop/LG_Proj4/Elwha_datafiles/2023/StreamTempMetrics_myCOMID.csv') %>%
+  dplyr::filter(Year >= 2015) %>%
+  dplyr::select(!X) 
+
+temp_summary_post <- streamtemp_post  %>%
+  dplyr::group_by(COMID) %>%
+  summarize(mWmT_mean_post = mean(mWmT),
+            AWAT_mean_post = mean(AWAT),
+            MWAT_mean_post = mean(MWAT),
+            MWMT_mean_post = mean(MWMT),
+            DaysAbove_mean_post = mean(DaysAbove),
+            MeanAug_mean_post = mean(MeanAug))
+```
+
+```{r}
+env_join <- env %>%
+  left_join(temp_summary, by= "COMID") %>%
+  left_join(temp_summary_post, by="COMID")
+```
+
+
+## remove variables that are sites IDS
+```{r}
+env_join <- env_join %>%
+  dplyr::select(!COMID) 
+```
+
+
+## first, test for correlation between just the temp variables 
+
+```{r}
+env_matrix <- env_join[c(38:49)]
+```
+
+```{r}
+cor_temp <- corr.test(env_matrix, method = "spearman", adjust = "none")
+cor_temp_plot <- corrplot(cor_temp$r, order = "FPC", method = "number", type = "lower", tl.cex = 0.7, tl.col = rgb(0, 0, 0))
+```
+
+very high correlations so i will just work with the temp data post dam removal 
+
+
+# rema
+```{r}
+env_matrix <- env_join[-c(38:43)]
+```
+
+## test for correlations among all numeric variables 
+```{r}
+#package only wants the matrix of values, so drop site name column (but save stream names, useful for later)
+sites <- env_join$Sampling_Site
+OUT_DIST <- env_join$OUT_DIST
+channel_type <- env_join$Channel_type
+particle <- env_join$Particle_size_estimate
+
+env_matrix <- env_join %>%
+  dplyr::select(!Sampling_Site) %>%
+  dplyr::select(!Channel_type) %>% #remove categorical variables
+  dplyr::select(!Particle_size_estimate) #remove categorical variables
+```
+
+## make correlation plot 
+```{r}
+cor_full <- corr.test(env_matrix, method = "spearman", adjust = "none")
+#cor_full$r[cor_full$p > 0.05] <- 0 #this puts blanks in for not significant correlations
+
+png('~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/envirocorr_all_variables_8March2023.png',   
+    width     = 6,
+    height    = 6,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+cor_init_plot <- corrplot(cor_full$r, order = "FPC", method = "number", type = "lower", tl.cex = 0.7, tl.col = rgb(0, 0, 0))
+dev.off()
+```
+
+## stepwise removal of highly correlated variables 
+```{r}
+#find attributes that are highly corrected
+highlyCorrelated <- findCorrelation(cor_full$r, cutoff=0.80, exact = TRUE)
+#ID names of highly correlated
+highlyCorCol <- colnames(env_matrix)[highlyCorrelated]
+#remove highly correlated variables
+env_cl <- env_matrix[, -which(colnames(env_matrix) %in% highlyCorCol)]
+```
+
+## substitute reduced environmental variables for others that are possibly more biologically relevant
+```{r}
+#omy_env <- data.frame(env_matrix$CANOPY, env_matrix$SLOPE, env_matrix$PRECIP, env_matrix$FlowVel, env_matrix$AWAT_mean, env_matrix$IP_Steelhd, env_matrix$Pool_frequency_channel_widths_per_pool, env_matrix$logjams_100_meters, env_matrix$spawnable_area, env_matrix$AVG_Percent_Fines, env_matrix$AVG_Percent_Gravels, env_matrix$Avg_Size_mm, env_matrix$DaysAbove_mean)
+#colnames(omy_env) <- c("CANOPY", "SLOPE", "PRECIP", "FlowVel", "AWAT", "IP_Steelhd", "Pool_freq", "Logjams", "Spawnable", "fines", "gravels", "Avg_Size", "DaysAbove")
+
+#chin_env <- data.frame(env_matrix$CANOPY, env_matrix$SLOPE, env_matrix$S36_2015, env_matrix$FlowVel, env_matrix$AWAT_mean, env_matrix$IP_Chinook, env_matrix$Pool_frequency_channel_widths_per_pool, env_matrix$logjams_100_meters, env_matrix$spawnable_area, env_matrix$AVG_Percent_Fines, env_matrix$AVG_Percent_Gravels, env_matrix$Avg_Size_mm, env_matrix$MWMT_mean)
+#colnames(chin_env) <- c("CANOPY", "SLOPE", "S36_2015", "FlowVel", "AWAT", "IP_Chinook", "Pool_freq", "Logjams", "Spawnable", "fines", "gravels", "Avg_Size", "MWMT")
+
+env_reduced <- data.frame(env_matrix$CANOPY, env_matrix$SLOPE, env_matrix$PRECIP, env_matrix$FlowVel, env_matrix$AWAT_mean_post, env_matrix$IP_Steelhd, env_matrix$IP_Chinook, env_matrix$Pool_frequency_channel_widths_per_pool, env_matrix$logjams_100_meters, env_matrix$spawnable_area, env_matrix$AVG_Percent_Fines, env_matrix$AVG_Percent_Gravels, env_matrix$MWMT_mean_post)
+colnames(env_reduced) <- c("CANOPY", "SLOPE", "PRECIP", "FlowVel", "AWAT", "IP_Steelhd", "IP_Chinook","Pool_freq", "Logjams", "Spawnable", "fines", "gravels", "MWMT")
+```
+
+
+## retest correlation and save matrix + plot
+```{r}
+cor_reduced <- corr.test(omy_env, method = "spearman", adjust = "none")
+#cor_reduced$r[cor_reduced$p > 0.05] <- 0 #this puts blanks in for not significant correlations
+
+png('~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/envirocorr_reduced_omy_20Feb2023.png',   
+    width     = 3.5,
+    height    = 3.5,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+cor_init_plot <- corrplot(cor_reduced$r, order = "FPC", method = "number", type = "lower", tl.cex = 0.7, tl.col = rgb(0, 0, 0))
+dev.off()
+```
+
+## retest correlation and save matrix + plot
+```{r}
+cor_reduced <- corr.test(chin_env, method = "spearman", adjust = "none")
+#cor_reduced$r[cor_reduced$p > 0.05] <- 0 #this puts blanks in for not significant correlations
+
+png('~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/envirocorr_reduced_chin_20Feb2023.png',   
+    width     = 3.5,
+    height    = 3.5,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+cor_init_plot <- corrplot(cor_reduced$r, order = "FPC", method = "number", type = "lower", tl.cex = 0.7, tl.col = rgb(0, 0, 0))
+dev.off()
+```
+
+## retest correlation and save matrix + plot
+```{r}
+cor_reduced <- corr.test(env_reduced, method = "spearman", adjust = "none")
+#cor_reduced$r[cor_reduced$p > 0.05] <- 0 #this puts blanks in for not significant correlations
+
+png('~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/envirocorr_reduced_8March2023.png',   
+    width     = 3.5,
+    height    = 3.5,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+cor_init_plot <- corrplot(cor_reduced$r, order = "FPC", method = "number", type = "lower", tl.cex = 0.7, tl.col = rgb(0, 0, 0))
+dev.off()
+```
+
+## Run ANOVAs 
+
+```{r}
+# add back in categorical vars 
+omy_env$Channel_type <- channel_type
+omy_env$Particle_size <- particle 
+
+omy_env$Channel_type <- as.factor(omy_env$Channel_type)
+omy_env$Particle_size<- as.factor(omy_env$Particle_size)
+```
+
+```{r}
+a1 <- aov(CANOPY ~ Channel_type, data = omy_env)
+summary(a1)
+```
+
+```{r}
+a2 <- aov(SLOPE ~ Channel_type, data = omy_env)
+summary(a2)
+```
+
+```{r}
+a3 <- aov(S36_2015 ~ Channel_type, data = omy_env)
+summary(a3)
+```
+
+
+```{r}
+a4 <- aov(FlowVel ~ Channel_type, data = omy_env)
+summary(a4)
+```
+
+
+```{r}
+a5 <- aov(AWAT ~ Channel_type, data = omy_env)
+summary(a5)
+```
+
+
+```{r}
+a6 <- aov(IP_Steelhd ~ Channel_type, data = omy_env)
+summary(a6)
+```
+
+
+```{r}
+a7 <- aov(Pool_freq ~ Channel_type, data = omy_env)
+summary(a7)
+```
+
+
+```{r}
+a8 <- aov(Logjams ~ Channel_type, data = omy_env)
+summary(a8)
+```
+
+```{r}
+a9 <- aov(Spawnable ~ Channel_type, data = omy_env)
+summary(a9)
+```
+
+```{r}
+a10 <- aov(fines ~ Channel_type, data = omy_env)
+summary(a10)
+```
+
+```{r}
+a11 <- aov(gravels ~ Channel_type, data = omy_env)
+summary(a11)
+```
+
+```{r}
+a12 <- aov(Avg_Size ~ Channel_type, data = omy_env)
+summary(a12)
+```
+
+```{r}
+a13 <- aov(DaysAbove ~ Channel_type, data = omy_env)
+summary(a12)
+```
+
+
+## plot 
+
+first, channel_type
+
+```{r}
+png('~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/envirocorr_channel_type.png',   
+    width     = 8,
+    height    = 5,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+
+a <- omy_env %>%
+  ggplot(aes(x= Channel_type, y= FlowVel)) + 
+  geom_boxplot()+ 
+  theme(
+    text = element_text(size = 5)
+  )
+
+b <- omy_env %>%
+  ggplot(aes(x= Channel_type, y= Pool_freq)) + 
+  geom_boxplot()+ 
+  theme(
+    text = element_text(size = 5)
+  )
+
+c <- omy_env %>%
+  ggplot(aes(x= Channel_type, y= Logjams)) + 
+  geom_boxplot() + 
+  theme(
+    text = element_text(size = 5)
+  )
+
+d <- omy_env %>%
+  ggplot(aes(x= Channel_type, y= gravels)) + 
+  geom_boxplot() + 
+  theme(
+    text = element_text(size = 5)
+  )
+
+e <- omy_env %>%
+  ggplot(aes(x= Channel_type, y= Avg_Size)) + 
+  geom_boxplot() + 
+  theme(
+    text = element_text(size = 5)
+  )
+
+f <- omy_env %>%
+  ggplot(aes(x= Channel_type, y= DaysAbove)) + 
+  geom_boxplot() + 
+  theme(
+    text = element_text(size = 5)
+  )
+
+
+plot_grid(a,b,c,d,e,f, ncol = 2, nrow = 3)
+
+dev.off()
+```
+
+
+
+
+```{r}
+a1 <- aov(CANOPY ~ Particle_size, data = omy_env)
+summary(a1)
+```
+
+```{r}
+a2 <- aov(SLOPE ~ Particle_size, data = omy_env)
+summary(a2)
+```
+
+```{r}
+a3 <- aov(S36_2015 ~ Particle_size, data = omy_env)
+summary(a3)
+```
+
+
+```{r}
+a4 <- aov(FlowVel ~ Particle_size, data = omy_env)
+summary(a4)
+```
+
+
+```{r}
+a5 <- aov(AWAT ~ Particle_size, data = omy_env)
+summary(a5)
+```
+
+
+```{r}
+a6 <- aov(IP_Steelhd ~ Particle_size, data = omy_env)
+summary(a6)
+```
+
+
+```{r}
+a7 <- aov(Pool_freq ~ Particle_size, data = omy_env)
+summary(a7)
+```
+
+
+```{r}
+a8 <- aov(Logjams ~ Particle_size, data = omy_env)
+summary(a8)
+```
+
+```{r}
+a9 <- aov(Spawnable ~ Particle_size, data = omy_env)
+summary(a9)
+```
+
+```{r}
+a10 <- aov(fines ~ Particle_size, data = omy_env)
+summary(a10)
+```
+
+```{r}
+a11 <- aov(gravels ~ Particle_size, data = omy_env)
+summary(a11)
+```
+
+```{r}
+a12 <- aov(Avg_Size ~ Particle_size, data = omy_env)
+summary(a12)
+```
+
+```{r}
+a13 <- aov(DaysAbove ~ Particle_size, data = omy_env)
+summary(a12)
+```
+
+
+
+```{r}
+png('~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/envirocorr_particle.png',   
+    width     = 8,
+    height    = 5,
+    units     = "in",
+    res       = 600,
+    pointsize = 4)
+
+a <- omy_env %>%
+  ggplot(aes(x= Particle_size, y= S36_2015)) + 
+  geom_boxplot()+ 
+  theme(
+    text = element_text(size = 5)
+  )
+b <- omy_env %>%
+  ggplot(aes(x= Particle_size, y= AWAT)) + 
+  geom_boxplot()+ 
+  theme(
+    text = element_text(size = 5)
+  )
+c <- omy_env %>%
+  ggplot(aes(x= Particle_size, y= Pool_freq)) + 
+  geom_boxplot()+ 
+  theme(
+    text = element_text(size = 5)
+  )
+d <- omy_env %>%
+  ggplot(aes(x= Particle_size, y= Logjams)) + 
+  geom_boxplot() + 
+  theme(
+    text = element_text(size = 5)
+  )
+e <- omy_env %>%
+  ggplot(aes(x= Particle_size, y=fines)) + 
+  geom_boxplot() + 
+  theme(
+    text = element_text(size = 5)
+  )
+f <- omy_env %>%
+  ggplot(aes(x= Particle_size, y= gravels)) + 
+  geom_boxplot() + 
+  theme(
+    text = element_text(size = 5)
+  )
+
+plot_grid(a,b,c,d,e,f, ncol = 2, nrow = 3)
+
+dev.off()
+```
+
+## add back in rownames 
+```{r}
+rownames(omy_env) <- sites
+rownames(chin_env) <- sites
+
+rownames(env_reduced) <- sites
+
+env_reduced$OUT_DIST <- OUT_DIST
+```
+
+## remove cateorical variables since they are associated with continuous 
+```{r}
+omy_env <- omy_env %>%
+  dplyr::select(!Channel_type) %>% #remove categorical variables
+  dplyr::select(!Particle_size) #remove categorical variables
+
+chin_env <- chin_env %>%
+  dplyr::select(!Channel_type) %>% #remove categorical variables
+  dplyr::select(!Particle_size) #remove categorical variables
+```
+
+
+## save output of environmental variables 
+```{r}
+write.csv(omy_env, "~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/enviro_summary_omy_20Feb2023.csv")
+write.csv(chin_env, "~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/enviro_summary_chin_20Feb2023.csv")
+
+write.csv(env_reduced, "~/Desktop/LG_Proj4/Elwha_environmentaldata/outputs/final/enviro_summary_reduced_22Feb2023.csv")
+```
