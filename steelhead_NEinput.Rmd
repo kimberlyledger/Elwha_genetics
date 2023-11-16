@@ -135,7 +135,7 @@ for (i in 1:n.loci){
     } else {
       # If missing data, set 000000 or 0000
       if(nchar(loc_all[1, 'allele'] == 6)){
-        a[j] <- "0000"
+        a[j] <- "000000"
       } else {
         a[j] <- "0000"
       }
